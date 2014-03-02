@@ -1,13 +1,13 @@
 all: manager linkstate distvec
 
-manager: manager.c graph.c graph.h
-	g++ -Wall -o manager manager.c graph.c graph.h
+manager: manager.cpp graph.cpp graph.h
+	g++ -Wall -o manager manager.cpp graph.cpp graph.h
 
-linkstate: linkstate.c graph.c graph.h
-	g++ -Wall -o linkstate linkstate.c graph.c graph.h
+linkstate: linkstate.cpp graph.cpp graph.h
+	g++ -Wall -o linkstate linkstate.cpp graph.cpp graph.h
 
-distvec: distvec.c graph.c graph.h
-	g++ -Wall -o distvec distvec.c graph.c graph.h  
+distvec: distvec.cpp graph.cpp graph.h
+	g++ -Wall -o distvec distvec.cpp graph.cpp graph.h  
 
 clean:
 	rm -rf manager linkstate distvec
