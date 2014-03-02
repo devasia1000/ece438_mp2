@@ -122,14 +122,26 @@
 
             else if (numbytes > 0){ /* read is sucsessful */
           if(virtual_id == -1){
+            cout<<"going to change virtual id\n";
             if(buf[1] == '\0'){
               virtual_id = buf[0];
             } else {
               virtual_id = 10*buf[0] + buf[1];
             }
-          }
 
-          printf("virtual_id: %d", virtual_id);
+              }
+            else{
+
+                cout<<"recieved other message: \n";
+
+            for(int i=0 ; i<MAX_NODE_COUNT*MAX_NODE_COUNT ; i++){
+              int temp = (int) buf[i];
+              cout<<temp;
+            }
+          }
+            
+
+          printf("virtual_id: %d\n", virtual_id);
         }
 
             else if (numbytes == 0){ /* socket has been closed */
