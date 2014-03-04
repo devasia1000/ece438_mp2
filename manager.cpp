@@ -214,7 +214,7 @@ int main(){
 
             cout<<"Sending virtual id: "<<virtual_id<<"\n";
 
-            char* id = convertToString(virtual_id);
+            char *id = convertToString(virtual_id);
             int size;
             if(virtual_id < 10){
                 id[1] = '\0';
@@ -228,26 +228,12 @@ int main(){
                 perror("send");
             }
 
-            vector<char> top_info;
-
-            for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-                for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-                    if(i == virtual_id || j == virtual_id){
-                        top_info.push_back(g.top[i][j]+48); // factor of 48 converts int to ASCII
-                        cout<<*top_info.end()<<" ";
-                    } else {
-                        top_info.push_back(0+48); // factor of 48 converts int to ASCII
-                        cout<<*top_info.end()<<" ";
-                    }
-                }
-            }
-
-            char final_top_info[MAX_NODE_COUNT*MAX_NODE_COUNT];
-            copy(top_info.begin(), top_info.end(), final_top_info);
-
-            if (send(new_fd, final_top_info, sizeof(final_top_info)/sizeof(*final_top_info), 0) == -1){
+            string data = "2:192.168.1.452";
+            if (send(new_fd, data.c_str(), 200, 0) == -1){
                 perror("send");
             }
+
+            cout<<"send ip info\n";
 
             exit(0);
         }
