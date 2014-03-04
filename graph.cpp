@@ -45,6 +45,8 @@ int graph::minDistance(int dist[], bool sptSet[]){
     return min_index;
 }
 
+// THIS FUNCTION IS FOR TESTING PURPOSES ONLY...
+// I WILL IMPLEMENT DJIKSTRAS BY MYSELF AFTER I COMFIRM LINK STATE IS WORKING
 int graph::djikstra(){
 
     int dist[MAX_NODE_COUNT];     // The output array.  dist[i] will hold the shortest
