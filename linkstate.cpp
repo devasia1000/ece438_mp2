@@ -25,6 +25,7 @@ void *contactManager(void *ptr);
 void handle_routing_table_update(char buf[MAXDATASIZE]); // handles all updates to routing tables
 void *startServer(void *ptr); // listens to incoming connections from neighbours
 void *handle_client(void *ptr); // handle a single client connection
+void add_sockfd(int virtual_id); // opens a socket to nighbour using and stores sockfd in 'sock_fd' vector
 // END OF FUNCTION DEFINITIONS
 
 // START OF GLOBAL VARIABLES
@@ -33,6 +34,7 @@ int virtual_id = -1;
 string manager_ip = "localhost"; // ip address of the manager, TODO: PASS IN AS ARG LATER
 string port = "6000"; // port number of the manager, TODO: PASS IN AS ARG LATER
 vector<char*> ip_addresses; // hold ip addresses of neighbours
+vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
 // END OF GLOBAL VARIABLES
 
 void sigchld_handler(int s) {
@@ -68,6 +70,11 @@ int main() {
     ip_addresses[i][0] = '\0';
   }
 
+  sock_fd.resize(20);
+  for(unsigned int i=0 ; i<sock_fd.size() ; i++){
+    sock_fd[i] = 0;
+  }
+
   // clear topology data
   for (int i=0 ; i<MAX_NODE_COUNT ; i++) {
     for (int j=0 ; j<MAX_NODE_COUNT ; j++) {
@@ -80,9 +87,9 @@ int main() {
   pthread_join(manager_thread, NULL);
   
   // TODO: uncomment out later
-  //pthread_t link_state_listener;
-  //pthread_create(&link_state_listener, NULL, startServer, NULL);
-  //pthread_join(link_state_listener, NULL);
+  pthread_t link_state_listener;
+  pthread_create(&link_state_listener, NULL, startServer, NULL);
+  pthread_join(link_state_listener, NULL);
 
   // TODO: need another thread to check for convergence and print routing table
 }
@@ -203,7 +210,10 @@ void *contactManager(void *ptr) {
         strcpy(ip_addresses[id], ip);
 
         cout<<"for virtual id "<<id<<", stored ip address "<<ip_addresses[id]<<"\n";
-      
+
+        add_sockfd(virtual_id);
+
+        // TODO: set TTL to '20' and broadcast message to all neighbours
       }
     }
 
@@ -213,6 +223,41 @@ void *contactManager(void *ptr) {
       printf("closing socket\n");
     }
   }
+}
+
+void add_sockfd(int virtual_id){
+  int port = atoi(PORT) + virtual_id;
+
+  int sockfd;
+    struct addrinfo hints, *servinfo, *p;
+    int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    if ((rv = getaddrinfo(ip_addresses[virtual_id], convertToString(port), &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        exit(1);
+    }
+
+    // loop through all the results and make a socket
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                p->ai_protocol)) == -1) {
+            perror("socket");
+            continue;
+        }
+
+        break;
+    }
+
+    if (p == NULL) {
+        fprintf(stderr, "failed to bind socket\n");
+        exit(1);
+    }
+
+    sock_fd[virtual_id] = sockfd;
 }
 
 // listens for incoming connections from neighbours
