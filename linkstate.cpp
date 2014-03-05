@@ -23,12 +23,15 @@
 // START OF FUNCTION DEFINITIONS
 void *contactManager(void *ptr);
 void handle_routing_table_update(char buf[MAXDATASIZE]); // handles all updates to routing tables
+void update_timestamp(); // update the convergence timestamp
 void *startServer(void *ptr); // listens to incoming connections from neighbours
 void *handle_client(void *ptr); // handle a single client connection
 void add_sockfd(int virtual_id); // opens a socket to nighbour using and stores sockfd in 'sock_fd' vector
+void *convergence_checker(void *ptr); // checks for convergence
 // END OF FUNCTION DEFINITIONS
 
 // START OF GLOBAL VARIABLES
+long timestamp = -1;
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // stores topology information
 int virtual_id = -1;
 string manager_ip = "localhost"; // ip address of the manager, TODO: PASS IN AS ARG LATER
@@ -86,12 +89,33 @@ int main() {
   pthread_create( &manager_thread, NULL, contactManager, NULL);
   pthread_join(manager_thread, NULL);
   
-  // TODO: uncomment out later
   pthread_t link_state_listener;
   pthread_create(&link_state_listener, NULL, startServer, NULL);
   pthread_join(link_state_listener, NULL);
 
-  // TODO: need another thread to check for convergence and print routing table
+  pthread_t convergence;
+  pthread_create(&convergence, NULL, convergence_checker, NULL);
+  pthread_join(convergence, NULL);
+}
+
+void *convergence_checker(void *ptr){
+  while(1){
+    sleep(2);
+
+    long cur_time = time(0);
+    if(cur_time - timestamp < 5 && timestamp != 0){
+
+      // TODO: print out routing table
+
+      timestamp = 0;
+    }
+  }
+
+  exit(0);
+}
+
+void update_timestamp(){
+  timestamp = (long) time(0);
 }
 
 // contacts the manager and gets virtual id
@@ -148,6 +172,8 @@ void *contactManager(void *ptr) {
     }
 
     else if (numbytes > 0) {
+
+      update_timestamp();
 
       cout<<"read is done\n";
 
@@ -211,9 +237,50 @@ void *contactManager(void *ptr) {
 
         cout<<"for virtual id "<<id<<", stored ip address "<<ip_addresses[id]<<"\n";
 
-        add_sockfd(virtual_id);
+        add_sockfd(id);
 
-        // TODO: set TTL to '20' and broadcast message to all neighbours
+        /*
+          Broadcast format:
+          
+            {senders_virtual_id}:{ttl}:{topology_data}
+            Eg: 02:20:0001200...
+            eg: 15:20:0001000...
+        */
+
+        char mess[MAXDATASIZE];
+
+        if(virtual_id < 10){
+          mess[0] = '0';
+          mess[1] = virtual_id + 48;
+          mess[2] = ':';
+        } 
+
+        else{
+          mess[0] = '1';
+          mess[1] = virtual_id%10 + 48;
+          mess[2] = ':';
+        }
+
+        mess[3] = '2';
+        mess[4] = '0';
+        mess[5] = ':';
+
+        int k=6;
+        for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+          for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+            mess[k] = top[i][j]+48;
+            k++;
+          }
+        }
+
+        mess[k] = '\0';
+
+        if (send(sock_fd[id], mess, MAXDATASIZE, 0) == -1){
+          perror("send");
+        }
+
+        update_timestamp();
+
       }
     }
 
@@ -226,6 +293,7 @@ void *contactManager(void *ptr) {
 }
 
 void add_sockfd(int virtual_id){
+
   int port = atoi(PORT) + virtual_id;
 
   int sockfd;
@@ -364,7 +432,7 @@ void *handle_client(void *ptr){
 
   while(1){
 
-    /* read data from server */
+    /* read data from connected client */
     int numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0);
     if (numbytes == -1) {
       /* error has occured with read */
@@ -373,11 +441,52 @@ void *handle_client(void *ptr){
     }
 
     else if (numbytes > 0) {
+
+      update_timestamp();
+
       // buf now contains routing table information
       handle_routing_table_update(buf);
 
-      // TODO: decrement TTL and send message to all neighbours
+      /*
+          Broadcast format:
+          
+            {senders_virtual_id}:{ttl}:{topology_data}
+            Eg: 02:20:0001200...
+            eg: 15:20:0001000...
+        */
 
+      unsigned int prev_virtual_id = (buf[0] - 48)*10 + (buf[1] - 48);
+
+      // replace with sender's virtual id
+      if(virtual_id < 10){
+          buf[0] = '0';
+          buf[1] = virtual_id + 48;
+          buf[2] = ':';
+        } 
+
+        else{
+          buf[0] = '1';
+          buf[1] = virtual_id%10 + 48;
+          buf[2] = ':';
+        }
+
+        int ttl = (buf[3]-48)*10 + (buf[4]-48); // extract TTL
+        ttl--; // decrement TTL
+
+        buf[3] = (ttl-(ttl%10)) + 48;
+        buf[4] = (ttl%10) + 48;
+
+        // send to all neighbours
+        for(unsigned int i=0 ; i<sock_fd.size() ; i++){
+          if(i != prev_virtual_id && sock_fd[i] != 0){
+
+            if (send(sock_fd[i], buf, MAXDATASIZE, 0) == -1){
+              perror("send");
+            }
+
+            update_timestamp();
+          }
+        }
     }
 
     else if (numbytes == 0) {
