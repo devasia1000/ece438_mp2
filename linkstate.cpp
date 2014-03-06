@@ -54,9 +54,9 @@ void *get_in_addr(struct sockaddr *sa) {
 
 char* convertToString(int number) {
   stringstream ss;
-  //create a stringstream
+//create a stringstream
   ss << number;
-  //add number to the stream
+//add number to the stream
   string result = ss.str();
   char *a=new char[result.size()+1];
   a[result.size()]=0;
@@ -65,8 +65,8 @@ char* convertToString(int number) {
 }
 
 int main() {
-  
-  // clear neighbour ip address information
+
+// clear neighbour ip address information
   ip_addresses.resize(20);
   for(unsigned int i=0 ; i<ip_addresses.size() ; i++){
     ip_addresses[i] = new char[80];
@@ -78,7 +78,7 @@ int main() {
     sock_fd[i] = 0;
   }
 
-  // clear topology data
+// clear topology data
   for (int i=0 ; i<MAX_NODE_COUNT ; i++) {
     for (int j=0 ; j<MAX_NODE_COUNT ; j++) {
       top[i][j] = 0;
@@ -88,14 +88,12 @@ int main() {
   pthread_t manager_thread;
   pthread_create( &manager_thread, NULL, contactManager, NULL);
   pthread_join(manager_thread, NULL);
-  
-  pthread_t link_state_listener;
-  pthread_create(&link_state_listener, NULL, startServer, NULL);
-  pthread_join(link_state_listener, NULL);
+  cout<<__func__<<" : started manager thread\n";
 
   pthread_t convergence;
   pthread_create(&convergence, NULL, convergence_checker, NULL);
   pthread_join(convergence, NULL);
+  cout<<__func__<<" : started convergence checker thread\n";
 }
 
 void *convergence_checker(void *ptr){
@@ -105,7 +103,8 @@ void *convergence_checker(void *ptr){
     long cur_time = time(0);
     if(cur_time - timestamp < 5 && timestamp != 0){
 
-      // TODO: print out routing table
+      cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
+    // TODO: print out routing table
 
       timestamp = 0;
     }
@@ -127,7 +126,7 @@ void *contactManager(void *ptr) {
   int rv;
   char s[INET6_ADDRSTRLEN];
 
-  /* clear the hints structure */
+/* clear the hints structure */
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -137,7 +136,7 @@ void *contactManager(void *ptr) {
     exit(0);
   }
 
-  /* loop through all the results and connect to the first we can */
+/* loop through all the results and connect to the first we can */
   for (p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
       perror("client: socket");
@@ -163,10 +162,10 @@ void *contactManager(void *ptr) {
 
   while(1) {
 
-    /* read data from server */
+  /* read data from server */
     numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0);
     if (numbytes == -1) {
-      /* error has occured with read */
+    /* error has occured with read */
       perror("recv");
       exit(0);
     }
@@ -175,11 +174,9 @@ void *contactManager(void *ptr) {
 
       update_timestamp();
 
-      cout<<"read is done\n";
-
-      /* read is sucsessful */
+    /* read is sucsessful */
       if(virtual_id == -1) {
-        cout<<"going to assign virtual id\n";
+        cout<<__func__<<" : going to assign virtual id\n";
         if(buf[1] == '\0') {
           virtual_id = buf[0];
         }
@@ -188,19 +185,24 @@ void *contactManager(void *ptr) {
           virtual_id = 10*buf[0] + buf[1];
         }
 
-        virtual_id = virtual_id - 48; // account for conversion from ASCII to int
-        printf("assigned virtual_id: %d\n", virtual_id);
-      }
+      virtual_id = virtual_id - 48; // account for conversion from ASCII to int
+      cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
 
-      else {
 
-        cout<<buf<<"\n";
+      pthread_t link_state_listener;
+      pthread_create(&link_state_listener, NULL, startServer, NULL);
+      cout<<__func__<<" : started link state listener thread\n";
+    }
 
-        /*
-          Format of neighbour information: 
-          virtual_id:ip_address
-          eg: 2:192.168.1.2 
-        */
+    else {
+
+      cout<<__func__<<" : recieved neighbour information from manager: "<<buf<<"\n";
+
+      /*
+        Format of neighbour information: 
+        virtual_id:ip_address
+        eg: 2:192.168.1.2 
+      */
 
         char v_id[MAXDATASIZE], ip[MAXDATASIZE];
         int v=0, p=0, i=0;
@@ -231,107 +233,137 @@ void *contactManager(void *ptr) {
           id = 10*v_id[0] + v_id[1];
         }
 
-        id = id - 48; // account for conversion from ASCII to int
+      id = id - 48; // account for conversion from ASCII to int
+
+      if(ip_addresses[id] == NULL || sock_fd[id] == 0){
 
         strcpy(ip_addresses[id], ip);
-
-        cout<<"for virtual id "<<id<<", stored ip address "<<ip_addresses[id]<<"\n";
-
+        cout<<__func__<<" : for nieghbour virtual id "<<id<<", stored ip address "<<ip_addresses[id]<<"\n";
         add_sockfd(id);
+      }
 
-        /*
-          Broadcast format:
-          
-            {senders_virtual_id}:{ttl}:{topology_data}
-            Eg: 02:20:0001200...
-            eg: 15:20:0001000...
-        */
+      /*
+        Broadcast format:
+        
+          {senders_virtual_id}:{ttl}:{topology_data}
+          Eg: 02:20:0001200...
+          eg: 15:20:0001000...
+      */
 
-        char mess[MAXDATASIZE];
+          char mess[MAXDATASIZE];
 
-        if(virtual_id < 10){
-          mess[0] = '0';
-          mess[1] = virtual_id + 48;
-          mess[2] = ':';
-        } 
+          if(virtual_id < 10){
+            mess[0] = '0';
+            mess[1] = virtual_id + 48;
+            mess[2] = ':';
+          } 
 
-        else{
-          mess[0] = '1';
-          mess[1] = virtual_id%10 + 48;
-          mess[2] = ':';
-        }
-
-        mess[3] = '2';
-        mess[4] = '0';
-        mess[5] = ':';
-
-        int k=6;
-        for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-          for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-            mess[k] = top[i][j]+48;
-            k++;
+          else{
+            mess[0] = '1';
+            mess[1] = virtual_id%10 + 48;
+            mess[2] = ':';
           }
+
+          mess[3] = '2';
+          mess[4] = '0';
+          mess[5] = ':';
+
+          int k=6;
+          for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+            for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+              mess[k] = top[i][j]+48;
+              k++;
+            }
+          }
+
+          mess[k] = '\0';
+
+          if (send(sock_fd[id], mess, MAXDATASIZE, 0) == -1){
+            perror("send");
+          }
+
+          cout<<__func__<<" : sent routing information to neighbour\n";
+          update_timestamp();
+
         }
+      }
 
-        mess[k] = '\0';
-
-        if (send(sock_fd[id], mess, MAXDATASIZE, 0) == -1){
-          perror("send");
-        }
-
-        update_timestamp();
-
+      else if (numbytes == 0) {
+    /* socket has been closed */
+        close(sockfd);
+        printf("closing socket\n");
       }
     }
-
-    else if (numbytes == 0) {
-      /* socket has been closed */
-      close(sockfd);
-      printf("closing socket\n");
-    }
   }
-}
 
-void add_sockfd(int virtual_id){
+  void add_sockfd(int v_id){
 
-  int port = atoi(PORT) + virtual_id;
+    usleep(200);
 
-  int sockfd;
+    int port = atoi(PORT) + v_id;
+
+    ostringstream oss;
+    oss<<port<<'\0';
+
+    int sockfd;
     struct addrinfo hints, *servinfo, *p;
     int rv;
+    char s[INET6_ADDRSTRLEN];
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(ip_addresses[virtual_id], convertToString(port), &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        exit(1);
+    // TODO: FIX FORMAT OF PORT!!
+
+    if(v_id == 1){
+    if ((rv = getaddrinfo("127.0.0.1", "6001", &hints, &servinfo)) != 0) {
+      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+      exit(1);
     }
+  }
 
-    // loop through all the results and make a socket
+  else if(v_id == 2){
+    if ((rv = getaddrinfo("127.0.0.1", "6002", &hints, &servinfo)) != 0) {
+      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+      exit(1);
+    }
+  }
+
+  // loop through all the results and connect to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("socket");
-            continue;
-        }
-
-        break;
+      if ((sockfd = socket(p->ai_family, p->ai_socktype,
+        p->ai_protocol)) == -1) {
+        perror("client: socket");
+      continue;
     }
 
-    if (p == NULL) {
-        fprintf(stderr, "failed to bind socket\n");
-        exit(1);
+    if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+      close(sockfd);
+      perror("client: connect");
+      continue;
     }
 
-    sock_fd[virtual_id] = sockfd;
+    break;
+  }
+
+  if (p == NULL) {
+    fprintf(stderr, "client: failed to connect\n");
+    exit(1);
+  }
+
+  inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
+    s, sizeof s);
+  printf("client: connecting to %s\n", s);
+
+  freeaddrinfo(servinfo); // all done with this structure
+
+  sock_fd[v_id] = sockfd;
+
 }
 
 // listens for incoming connections from neighbours
 void *startServer(void *ptr) {
-
-  sleep(3); // wait to get virtual id and neighbour information from manager
 
   char server_port[80];
   strcpy(server_port, port.c_str());
@@ -341,8 +373,8 @@ void *startServer(void *ptr) {
     server_port[2] = '\0';
   }
 
-  int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
-  struct addrinfo hints, *servinfo, *p;
+int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+struct addrinfo hints, *servinfo, *p;
   struct sockaddr_storage their_addr; // connector's address information
   socklen_t sin_size;
   struct sigaction sa;
@@ -355,72 +387,74 @@ void *startServer(void *ptr) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE; // use my IP
 
-  if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+  int port = atoi(PORT) + virtual_id;
+
+  if ((rv = getaddrinfo(NULL, convertToString(port), &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     exit(1);
   }
 
-  // loop through all the results and bind to the first we can
+ // loop through all the results and bind to the first we can
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                      p->ai_protocol)) == -1) {
-          perror("server: socket");
-          continue;
-      }
-
-      if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                  sizeof(int)) == -1) {
-          perror("setsockopt");
-          exit(1);
-      }
-
-      if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-          close(sockfd);
-          perror("server: bind");
-          continue;
-      }
-
-      break;
+      p->ai_protocol)) == -1) {
+      perror("server: socket");
+    continue;
   }
 
-  if (p == NULL)  {
-      fprintf(stderr, "server: failed to bind\n");
-      exit(1);
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+    sizeof(int)) == -1) {
+    perror("setsockopt");
+  exit(1);
+}
+
+if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+  close(sockfd);
+  perror("server: bind");
+  continue;
+}
+
+break;
+}
+
+if (p == NULL)  {
+  fprintf(stderr, "server: failed to bind\n");
+  exit(1);
+}
+
+freeaddrinfo(servinfo); // all done with this structure
+
+if (listen(sockfd, BACKLOG) == -1) {
+  perror("listen");
+  exit(1);
+}
+
+sa.sa_handler = sigchld_handler; // reap all dead processes
+sigemptyset(&sa.sa_mask);
+sa.sa_flags = SA_RESTART;
+if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+  perror("sigaction");
+  exit(1);
+}
+
+cout<<"Neighbour server: waiting for connections on port "<<convertToString(port)<<"\n";
+
+while(1) {  // main accept() loop
+
+  sin_size = sizeof their_addr;
+  new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+  if (new_fd == -1) {
+    perror("accept");
+    continue;
   }
 
-  freeaddrinfo(servinfo); // all done with this structure
+  inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+  printf("Neighbour server: got connection from %s\n", s);
 
-  if (listen(sockfd, BACKLOG) == -1) {
-      perror("listen");
-      exit(1);
-  }
-
-  sa.sa_handler = sigchld_handler; // reap all dead processes
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART;
-  if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-      perror("sigaction");
-      exit(1);
-  }
-
-  printf("server: waiting for connections...\n");
-
-  while(1) {  // main accept() loop
-
-      sin_size = sizeof their_addr;
-      new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-      if (new_fd == -1) {
-          perror("accept");
-          continue;
-      }
-
-      inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-      printf("server: got connection from %s\n", s);
-
-      // create new thread to handle client
-      pthread_t client_manager;
-      pthread_create( &client_manager, NULL, handle_client, &new_fd);
-  }
+    // create new thread to handle client
+  pthread_t client_manager;
+  pthread_create( &client_manager, NULL, handle_client, &new_fd);
+}
 }
 
 // handle a single client connection
@@ -432,10 +466,10 @@ void *handle_client(void *ptr){
 
   while(1){
 
-    /* read data from connected client */
+  /* read data from connected client */
     int numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0);
     if (numbytes == -1) {
-      /* error has occured with read */
+    /* error has occured with read */
       perror("recv");
       exit(0);
     }
@@ -444,53 +478,57 @@ void *handle_client(void *ptr){
 
       update_timestamp();
 
-      // buf now contains routing table information
+      cout<<__func__<<": recieved routing table information from neighbour\n";
+
+    // buf now contains routing table information
       handle_routing_table_update(buf);
 
-      /*
-          Broadcast format:
-          
-            {senders_virtual_id}:{ttl}:{topology_data}
-            Eg: 02:20:0001200...
-            eg: 15:20:0001000...
-        */
+    /*
+        Broadcast format:
+        
+          {senders_virtual_id}:{ttl}:{topology_data}
+          Eg: 02:20:0001200...
+          eg: 15:20:0001000...
+      */
 
-      unsigned int prev_virtual_id = (buf[0] - 48)*10 + (buf[1] - 48);
+          unsigned int prev_virtual_id = (buf[0] - 48)*10 + (buf[1] - 48);
 
-      // replace with sender's virtual id
-      if(virtual_id < 10){
-          buf[0] = '0';
-          buf[1] = virtual_id + 48;
-          buf[2] = ':';
-        } 
+    // replace with sender's virtual id
+          if(virtual_id < 10){
+            buf[0] = '0';
+            buf[1] = virtual_id + 48;
+            buf[2] = ':';
+          } 
 
-        else{
-          buf[0] = '1';
-          buf[1] = virtual_id%10 + 48;
-          buf[2] = ':';
-        }
-
-        int ttl = (buf[3]-48)*10 + (buf[4]-48); // extract TTL
-        ttl--; // decrement TTL
-
-        buf[3] = (ttl-(ttl%10)) + 48;
-        buf[4] = (ttl%10) + 48;
-
-        // send to all neighbours
-        for(unsigned int i=0 ; i<sock_fd.size() ; i++){
-          if(i != prev_virtual_id && sock_fd[i] != 0){
-
-            if (send(sock_fd[i], buf, MAXDATASIZE, 0) == -1){
-              perror("send");
-            }
-
-            update_timestamp();
+          else{
+            buf[0] = '1';
+            buf[1] = virtual_id%10 + 48;
+            buf[2] = ':';
           }
+
+      int ttl = (buf[3]-48)*10 + (buf[4]-48); // extract TTL
+      ttl--; // decrement TTL
+
+      buf[3] = (ttl-(ttl%10)) + 48;
+      buf[4] = (ttl%10) + 48;
+
+      // send to all neighbours
+      for(unsigned int i=0 ; i<sock_fd.size() ; i++){
+        if(i != prev_virtual_id && sock_fd[i] != 0){
+
+          if (send(sock_fd[i], buf, MAXDATASIZE, 0) == -1){
+            perror("send");
+          }
+
+          update_timestamp();
         }
+
+        cout<<__func__<<": flooding routing table update to all neighbours\n";
+      }
     }
 
     else if (numbytes == 0) {
-      /* socket has been closed */
+    /* socket has been closed */
       close(sockfd);
       printf("closing socket\n");
     }
@@ -506,4 +544,6 @@ void handle_routing_table_update(char buf[MAXDATASIZE]){
       k++;
     }
   }
+
+  cout<<__func__<<": updated routing table information\n";
 }
