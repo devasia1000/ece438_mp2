@@ -66,7 +66,12 @@ void *update_client(void *ptr);
 update prepare_send(int virtual_id);
 // END FUNCTION DECLARATIONS
 
-int main(){
+int main(int argc, char **argv){
+
+    if(argc != 3){
+        cerr<<"Usage: ./manager <topology_file> <message_file>\n";
+        return 1;
+    }
 
     sockfd_array.resize(MAX_NODE_COUNT);
     ip_address_array.resize(MAX_NODE_COUNT);
@@ -83,11 +88,7 @@ int main(){
         }
     }
 
-    char top_file[80];
-    cout<<"Enter path to topology file: ";
-    cin>>top_file;
-
-    FILE *file = fopen(top_file, "r");
+    FILE *file = fopen(argv[1], "r");
     if(file == NULL){
         cerr<<strerror(errno)<<"\n";
         exit(0);
@@ -103,11 +104,7 @@ int main(){
 
     fclose(file);
 
-    char message_file[80];
-    cout<<"Enter path to message file: ";
-    cin>>message_file;
-
-    file = fopen(message_file, "r");
+    file = fopen(argv[2], "r");
     if(file == NULL){
         cerr<<strerror(errno)<<"\n";
         exit(0);
@@ -216,11 +213,11 @@ if (p == NULL)  {
         strcpy(c, s);
         ip_address_array[virtual_id] = c;
 
-        cout<<"Stored IP address: "<<ip_address_array[virtual_id]<<"\n";
+        //cout<<"Stored IP address: "<<ip_address_array[virtual_id]<<"\n";
 
         sockfd_array[virtual_id] = new_fd;
 
-        cout<<"Sending virtual id: "<<virtual_id<<"\n";
+        //cout<<"Sending virtual id: "<<virtual_id<<"\n";
         char *id = convertToString(virtual_id);
         int size;
         if(virtual_id < 10){
@@ -261,7 +258,7 @@ void *update_client(void *ptr){
     int *temp = (int*) ptr;
     int virtual_id = *temp;
 
-    cout<<"updating virtual id "<<virtual_id<<"\n";
+    //cout<<"updating virtual id "<<virtual_id<<"\n";
 
     update info;
 
@@ -282,7 +279,7 @@ void *update_client(void *ptr){
 
         if(ip_address_array[i] != NULL){
             strcpy(info.neighbours[i], ip_address_array[i]);
-            cout<<"stored "<<info.neighbours[i]<<" for "<<i<<"when sending to "<<virtual_id<<"\n";
+            //cout<<"stored "<<info.neighbours[i]<<" for "<<i<<"when sending to "<<virtual_id<<"\n";
         }
     }
 

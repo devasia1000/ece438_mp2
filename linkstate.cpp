@@ -24,8 +24,7 @@
 long timestamp = -1;
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // stores topology information
 int virtual_id = -1;
-string manager_ip = "localhost"; // ip address of the manager, TODO: PASS IN AS ARG LATER
-string port = "6000"; // port number of the manager, TODO: PASS IN AS ARG LATER
+char manager_ip[80]; // ip address of the manager, TODO: PASS IN AS ARG LATER
 vector<char*> ip_addresses; // hold ip addresses of neighbours
 vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
 
@@ -77,7 +76,14 @@ char* convertToString(int number) {
   return a;
 }
 
-int main() {
+int main(int argc, char **argv) {
+
+  if(argc != 2){
+    cerr<<"Usage: ./link_state <manager_ip_address>\n";
+    return 1;
+  }
+
+  strcpy(manager_ip, argv[1]);
 
 // clear neighbour ip address information
   ip_addresses.resize(20);
@@ -143,12 +149,14 @@ void *contactManager(void *ptr) {
   int rv;
   char s[INET6_ADDRSTRLEN];
 
+  string port = PORT;
+
 /* clear the hints structure */
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
-  if ((rv = getaddrinfo(manager_ip.c_str(), port.c_str(), &hints, &servinfo)) != 0) {
+  if ((rv = getaddrinfo(manager_ip, port.c_str(), &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     exit(0);
   }
@@ -227,8 +235,6 @@ void *contactManager(void *ptr) {
 
     handle_routing_table_update(info.top);
 
-    sleep(3);
-
     cout<<__func__<<" : recieved neighbour information from manager:\n";
 
     // ENCODE INFORMATION INTO STRUCT
@@ -266,7 +272,7 @@ else if (numbytes == 0) {
 
 void add_sockfd(int v_id){
 
-  usleep(200);
+  usleep(500);
 
   int port = atoi(PORT) + v_id;
   ostringstream oss;
@@ -327,7 +333,8 @@ cout<<"stored socket fd for "<<v_id<<"\n";
 void *startServer(void *ptr) {
 
   char server_port[80];
-  strcpy(server_port, port.c_str());
+  string po = PORT;
+  strcpy(server_port, po.c_str());
   if(virtual_id < 10){
     server_port[1] = '\0';
   } else if (virtual_id > 10){
@@ -462,7 +469,7 @@ void *handle_client(void *ptr){
 
           // send to all neighbours
         for(unsigned int i=0 ; i<sock_fd.size() ; i++){
-          if(sock_fd[i] != 0  && i != prev_virtual_id){
+          if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
 
             cout<<"\tresending to "<<i<<"\n";
             if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
