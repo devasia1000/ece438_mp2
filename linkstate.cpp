@@ -36,8 +36,8 @@ struct data{ // used to send neighbour data
 };
 
 struct update{
-    char neighbours[MAX_NODE_COUNT][20];
-    int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+  char neighbours[MAX_NODE_COUNT][20];
+  int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
 };
 // END OF GLOBAL VARIABLES
 
@@ -101,7 +101,7 @@ int main() {
   cout<<__func__<<" : started manager thread\n";
   pthread_t manager_thread;
   pthread_create( &manager_thread, NULL, contactManager, NULL);
-  
+
   cout<<__func__<<" : started convergence checker thread\n";
   pthread_t convergence;
   pthread_create(&convergence, NULL, convergence_checker, NULL);
@@ -115,8 +115,8 @@ void *convergence_checker(void *ptr){
     long cur_time = time(0);
     if(cur_time - timestamp > 5 && timestamp != 0){
       cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
-    
-      // print out routing table
+
+    // print out routing table
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         for(int j=0 ; j<MAX_NODE_COUNT ; j++){
           cout<<top[i][j]<<" ";
@@ -143,7 +143,7 @@ void *contactManager(void *ptr) {
   int rv;
   char s[INET6_ADDRSTRLEN];
 
-  /* clear the hints structure */
+/* clear the hints structure */
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -179,10 +179,10 @@ void *contactManager(void *ptr) {
 
   while(1) {
 
-  /* read data from server */
+/* read data from server */
     numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
     if (numbytes == -1) {
-    /* error has occured with read */
+  /* error has occured with read */
       perror("recv");
       exit(0);
     }
@@ -191,7 +191,7 @@ void *contactManager(void *ptr) {
 
       update_timestamp();
 
-    /* read is sucsessful */
+  /* read is sucsessful */
       if(virtual_id == -1) {
         cout<<__func__<<" : going to assign virtual id\n";
         if(buf[1] == '\0') {
@@ -202,65 +202,65 @@ void *contactManager(void *ptr) {
           virtual_id = 10*buf[0] + buf[1];
         }
 
-      virtual_id = virtual_id - 48; // account for conversion from ASCII to int
-      cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
+    virtual_id = virtual_id - 48; // account for conversion from ASCII to int
+    cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
 
 
-      pthread_t link_state_listener;
-      pthread_create(&link_state_listener, NULL, startServer, NULL);
-      cout<<__func__<<" : started link state listener thread\n";
-    }
-
-    else {
-
-      update info;
-      memcpy(&info, buf, sizeof(update));
-
-      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
-          cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
-          ip_addresses[i] = new char[20];
-          strcpy(ip_addresses[i], info.neighbours[i]);
-          add_sockfd(i);
-        }
-      }
-
-      handle_routing_table_update(info.top);
-
-      sleep(3);
-
-      cout<<__func__<<" : recieved neighbour information from manager:\n";
-
-      // ENCODE INFORMATION INTO STRUCT
-      char mess[MAXDATASIZE];
-      data message;
-      message.sender_id = virtual_id;
-      message.ttl = 20;
-      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-          message.top[i][j] = top[i][j];
-        }
-      }
-
-      memcpy(mess, &message, sizeof(data));
-      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        if(top[virtual_id][i] > 0){
-          if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-            perror("send");
-          }
-        }
-      }
-
-      cout<<__func__<<" : sent routing information to neighbour\n";
-      update_timestamp();
-    }
+    pthread_t link_state_listener;
+    pthread_create(&link_state_listener, NULL, startServer, NULL);
+    cout<<__func__<<" : started link state listener thread\n";
   }
 
-  else if (numbytes == 0) {
-        /* socket has been closed */
-    close(sockfd);
-    printf("closing socket\n");
+  else {
+
+    update info;
+    memcpy(&info, buf, sizeof(update));
+
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
+        cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
+        ip_addresses[i] = new char[20];
+        strcpy(ip_addresses[i], info.neighbours[i]);
+        add_sockfd(i);
+      }
+    }
+
+    handle_routing_table_update(info.top);
+
+    sleep(3);
+
+    cout<<__func__<<" : recieved neighbour information from manager:\n";
+
+    // ENCODE INFORMATION INTO STRUCT
+    char mess[MAXDATASIZE];
+    data message;
+    message.sender_id = virtual_id;
+    message.ttl = 20;
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+        message.top[i][j] = top[i][j];
+      }
+    }
+
+    memcpy(mess, &message, sizeof(data));
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      if(top[virtual_id][i] > 0){
+        if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
+          perror("send");
+        }
+      }
+    }
+
+    cout<<__func__<<" : sent routing information to neighbour\n";
+    update_timestamp();
   }
+}
+
+else if (numbytes == 0) {
+      /* socket has been closed */
+  close(sockfd);
+  printf("closing socket\n");
+}
 }
 }
 
@@ -269,9 +269,9 @@ void add_sockfd(int v_id){
   usleep(200);
 
   int port = atoi(PORT) + v_id;
-
   ostringstream oss;
-  oss<<port<<'\0';
+  oss<<port;
+  string po = oss.str();
 
   int sockfd;
   struct addrinfo hints, *servinfo, *p;
@@ -282,51 +282,14 @@ void add_sockfd(int v_id){
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
-    // TODO: FIX FORMAT OF PORT AND IP ADDRESS!!
+  // TODO: FIX FORMAT OF PORT AND IP ADDRESS!!
 
-  if(v_id == 1){
-    if ((rv = getaddrinfo("127.0.0.1", "6001", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      exit(1);
-    }
+  if ((rv = getaddrinfo(ip_addresses[v_id], po.c_str(), &hints, &servinfo)) != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    exit(1);
   }
 
-  else if(v_id == 2){
-    if ((rv = getaddrinfo("127.0.0.1", "6002", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      exit(1);
-    }
-  }
-
-  else if(v_id == 3){
-    if ((rv = getaddrinfo("127.0.0.1", "6003", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      exit(1);
-    }
-  }
-
-  else if(v_id == 4){
-    if ((rv = getaddrinfo("127.0.0.1", "6004", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      exit(1);
-    }
-  }
-
-  else if(v_id == 5){
-    if ((rv = getaddrinfo("127.0.0.1", "6005", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      exit(1);
-    }
-  }
-
-  else if(v_id == 6){
-    if ((rv = getaddrinfo("127.0.0.1", "6006", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      exit(1);
-    }
-  }
-
-  // loop through all the results and connect to the first we can
+// loop through all the results and connect to the first we can
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
       p->ai_protocol)) == -1) {
@@ -352,11 +315,11 @@ inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
   s, sizeof s);
 printf("client: connecting to %s\n", s);
 
-  freeaddrinfo(servinfo); // all done with this structure
+freeaddrinfo(servinfo); // all done with this structure
 
-  sock_fd[v_id] = sockfd;
+sock_fd[v_id] = sockfd;
 
-  cout<<"stored socket fd for "<<v_id<<"\n";
+cout<<"stored socket fd for "<<v_id<<"\n";
 
 }
 
@@ -373,37 +336,37 @@ void *startServer(void *ptr) {
 
 int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
 struct addrinfo hints, *servinfo, *p;
-  struct sockaddr_storage their_addr; // connector's address information
-  socklen_t sin_size;
-  struct sigaction sa;
-  int yes=1;
-  char s[INET6_ADDRSTRLEN];
-  int rv;
+struct sockaddr_storage their_addr; // connector's address information
+socklen_t sin_size;
+struct sigaction sa;
+int yes=1;
+char s[INET6_ADDRSTRLEN];
+int rv;
 
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE; // use my IP
+memset(&hints, 0, sizeof hints);
+hints.ai_family = AF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+hints.ai_flags = AI_PASSIVE; // use my IP
 
-  int port = atoi(PORT) + virtual_id;
+int port = atoi(PORT) + virtual_id;
 
-  if ((rv = getaddrinfo(NULL, convertToString(port), &hints, &servinfo)) != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-    exit(1);
-  }
-
- // loop through all the results and bind to the first we can
-  for(p = servinfo; p != NULL; p = p->ai_next) {
-    if ((sockfd = socket(p->ai_family, p->ai_socktype,
-      p->ai_protocol)) == -1) {
-      perror("server: socket");
-    continue;
-  }
-
-  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-    sizeof(int)) == -1) {
-    perror("setsockopt");
+if ((rv = getaddrinfo(NULL, convertToString(port), &hints, &servinfo)) != 0) {
+  fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
   exit(1);
+}
+
+// loop through all the results and bind to the first we can
+for(p = servinfo; p != NULL; p = p->ai_next) {
+  if ((sockfd = socket(p->ai_family, p->ai_socktype,
+    p->ai_protocol)) == -1) {
+    perror("server: socket");
+  continue;
+}
+
+if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+  sizeof(int)) == -1) {
+  perror("setsockopt");
+exit(1);
 }
 
 if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
@@ -449,7 +412,7 @@ while(1) {  // main accept() loop
   inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
   printf("Neighbour server: got connection from %s\n", s);
 
-    // create new thread to handle client
+  // create new thread to handle client
   pthread_t client_manager;
   pthread_create( &client_manager, NULL, handle_client, &new_fd);
 }
@@ -464,12 +427,11 @@ void *handle_client(void *ptr){
 
   while(1){
 
-    usleep(100);
+    usleep(40);
 
-  /* read data from connected client */
+// read data from connected client 
     int numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
     if (numbytes == -1) {
-    /* error has occured with read */
       perror("recv");
       exit(0);
     }
@@ -478,70 +440,62 @@ void *handle_client(void *ptr){
 
       update_timestamp();
 
-    /*
-        Broadcast format:
-        
-          {ttl}:{topology_data}
-          Eg: 20:0001200...
-          eg: 02:0001000...
-      */
+      // decode information from char array into struct
+      data info;
+      memcpy(&info, buf, sizeof(data));
 
-          // TODO: DECODE INFORMATION FROM CHAR ARRAY INTO STRUCT
-          data info;
-          memcpy(&info, buf, sizeof(data));
+      handle_routing_table_update(info.top);
 
-          handle_routing_table_update(info.top);
-
-          unsigned int prev_virtual_id = info.sender_id;
-          info.sender_id = virtual_id;
-          info.ttl--;
+      unsigned int prev_virtual_id = info.sender_id;
+      info.sender_id = virtual_id;
+      info.ttl--;
 
 
-          cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
+      cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
 
-          // ENCODE STRUCT INTO CHAR ARRAY AND SENd
-          char buf2[MAXDATASIZE];
-          cout<<"bytes read"<<numbytes<<"\n";
-          memcpy(buf2, &info, sizeof(data));
+        // ENCODE STRUCT INTO CHAR ARRAY AND SENd
+      char buf2[MAXDATASIZE];
+      cout<<"bytes read"<<numbytes<<"\n";
+      memcpy(buf2, &info, sizeof(data));
 
-          if(info.ttl > 0){
+      if(info.ttl > 0){
 
-            // send to all neighbours
-            for(unsigned int i=0 ; i<sock_fd.size() ; i++){
-              if(sock_fd[i] != 0  && i != prev_virtual_id){
+          // send to all neighbours
+        for(unsigned int i=0 ; i<sock_fd.size() ; i++){
+          if(sock_fd[i] != 0  && i != prev_virtual_id){
 
-                cout<<"\tresending to "<<i<<"\n";
-                if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
-                  perror("send");
-                }
-
-                update_timestamp();
-              }
+            cout<<"\tresending to "<<i<<"\n";
+            if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
+              perror("send");
             }
 
+            update_timestamp();
           }
         }
 
-        else if (numbytes == 0) {
-    /* socket has been closed */
-          close(sockfd);
-          printf("closing socket\n");
-        }
       }
     }
 
-// handle updates to the routing table
-    void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
-
-      if(timestamp <= time(0)){
-        for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-          for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-            if(x[i][j] > 0){
-              top[i][j] = x[i][j];
-          }
-        }
-      }
-
-      update_timestamp();
+    else if (numbytes == 0) {
+        /* socket has been closed */
+      close(sockfd);
+      printf("closing socket\n");
     }
   }
+}
+
+// handle updates to the routing table
+void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
+
+  if(timestamp <= time(0)){
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+        if(x[i][j] > 0){
+          top[i][j] = x[i][j];
+        }
+      }
+    }
+
+    update_timestamp();
+  }
+}

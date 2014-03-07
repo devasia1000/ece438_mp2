@@ -101,13 +101,6 @@ int main(){
         nodes.insert(num2);
     }
 
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-            cout<<top[i][j]<<" ";
-        }
-        cout<<"\n";
-    }
-
     fclose(file);
 
     char message_file[80];
@@ -291,14 +284,6 @@ void *update_client(void *ptr){
             strcpy(info.neighbours[i], ip_address_array[i]);
             cout<<"stored "<<info.neighbours[i]<<" for "<<i<<"when sending to "<<virtual_id<<"\n";
         }
-    }
-
-    cout<<"\n\n";
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-            cout<<info.top[i][j]<<" ";
-        }
-        cout<<"\n";
     }
 
     char buf[MAXDATASIZE];
