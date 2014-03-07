@@ -17,7 +17,7 @@
 #include <sstream>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 500
+#define MAXDATASIZE 2000
 #define PORT "6000"
 
 void sigchld_handler(int s){
@@ -49,6 +49,11 @@ char* convertToString(int number){
 }
 
 // GLOBAL VARIBALES 
+struct update{
+    char neighbours[MAX_NODE_COUNT][20];
+    int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+};
+
 vector<int> sockfd_array; // holds socket file descriptors to each node
 vector<char*> ip_address_array; // holds ip addresses of nodes
 set<int> nodes; // used to store and assign virtual id's to nodes
@@ -58,6 +63,7 @@ vector<char*> message; // used to hold messages to be sent between nodes
 
 // START FUNCTION DECLARATIONS
 void *update_client(void *ptr);
+update prepare_send(int virtual_id);
 // END FUNCTION DECLARATIONS
 
 int main(){
@@ -93,6 +99,13 @@ int main(){
         top[num2][num1] = num3;
         nodes.insert(num1);
         nodes.insert(num2);
+    }
+
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+            cout<<top[i][j]<<" ";
+        }
+        cout<<"\n";
     }
 
     fclose(file);
@@ -153,23 +166,23 @@ int main(){
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
         sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-    }
+        perror("setsockopt");
+    exit(1);
+}
 
-    if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-        close(sockfd);
-        perror("server: bind");
-        continue;
-    }
+if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+    close(sockfd);
+    perror("server: bind");
+    continue;
+}
 
-        break;
-    }
+break;
+}
 
-    if (p == NULL)  {
-        fprintf(stderr, "server: failed to bind\n");
-        return 2;
-    }
+if (p == NULL)  {
+    fprintf(stderr, "server: failed to bind\n");
+    return 2;
+}
 
     freeaddrinfo(servinfo); // all done with this structure
 
@@ -230,13 +243,12 @@ int main(){
             perror("send");
         }
 
-        // TODO: send topology information to client
-
-        // when a new node has joined, update neighbours
+        // send topology and neighbour information to all clients
         for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-            if(top[virtual_id][i] != 0 || i == virtual_id){
+            if(sockfd_array[i] != 0){
                 int *temp = new int;
                 *temp = i; // IMPORTANT: used to store i and protect against change while for loop is running
+
                 pthread_t update_thread;
                 pthread_create( &update_thread, NULL, update_client, temp);
             }
@@ -250,45 +262,51 @@ int main(){
     return 0;
 }
 
+
 void *update_client(void *ptr){
 
     int *temp = (int*) ptr;
     int virtual_id = *temp;
-    cout<<"going to update "<<virtual_id<<"\n";
+
+    cout<<"updating virtual id "<<virtual_id<<"\n";
+
+    update info;
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        if(top[virtual_id][i] != 0 && ip_address_array[i] != NULL && sockfd_array[i] != 0){
-            ostringstream oss;
-            oss<<i<<":"<<ip_address_array[i]<<'\0';
+        info.neighbours[i][0] = '\0';
+    }
 
-            if (send(sockfd_array[virtual_id], oss.str().c_str(), MAXDATASIZE, 0) == -1){
-              perror("send");
-            }
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+            info.top[i][j] = 0;
         }
     }
 
-    return NULL;
-}
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
 
-void testGraph(){
-    graph g(2);
+        info.top[virtual_id][i] = top[virtual_id][i];
+        info.top[i][virtual_id] = top[i][virtual_id];
 
-    g.addLink(1, 2, 8);
-    g.addLink(2, 3, 3);
-    g.addLink(2, 5, 4);
-    g.addLink(5, 4, 1);
-    g.addLink(4, 1, 1);
+        if(ip_address_array[i] != NULL){
+            strcpy(info.neighbours[i], ip_address_array[i]);
+            cout<<"stored "<<info.neighbours[i]<<" for "<<i<<"when sending to "<<virtual_id<<"\n";
+        }
+    }
 
-    vector<PathInfo> path_info = g.getShortestPathInformation();
-    for(unsigned int i=0 ; i<path_info.size() ; i++){
-        cout<<"Source: "<<path_info[i].source<<", ";
-        cout<<"Dest: "<<path_info[i].destination<<", ";
-        cout<<"Cost: "<<path_info[i].cost<<", ";
-
-        cout<<"Path: ";
-        for(unsigned int j=0 ; j<path_info[i].path.size() ; j++){
-            cout<<path_info[i].path[j]<<" ";
+    cout<<"\n\n";
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+            cout<<info.top[i][j]<<" ";
         }
         cout<<"\n";
     }
+
+    char buf[MAXDATASIZE];
+    memcpy(buf, &info, sizeof(update));
+
+    if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
+        perror("send");
+    }
+
+    return NULL;
 }
