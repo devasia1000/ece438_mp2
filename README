@@ -1,13 +1,7 @@
 ================================================
 |   Name             |   UIN        |   NetID  |
 ------------------------------------------------
-|   Spencer Carlson  |   658976679  |          |
-------------------------------------------------
 |    Devasia Manuel  |   650430324  | dmanuel2 |
 ------------------------------------------------
-
-
-Notes:  
-I had to change to Makefile for it to run on my machine. When I droped
-the .h files from the compile comands it worked fine. I'm using g++ on an Apple
-Apple LLVM version 5.0 (clang-500.2.79) (based on LLVM 3.3svn)
+|   Spencer Carlson  |   658976679  | sdcarls2 |
+------------------------------------------------

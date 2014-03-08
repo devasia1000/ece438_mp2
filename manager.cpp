@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "message.h"
 
 #include <iostream>
 #include <stdio.h>
@@ -15,6 +16,7 @@
 #include <signal.h>
 #include <set>
 #include <sstream>
+#include <fstream>
 
 #define BACKLOG 20   // how many pending connections queue will hold
 #define MAXDATASIZE 2000
@@ -88,14 +90,17 @@ int main(int argc, char **argv){
         }
     }
 
+    // START Read topology file
     FILE *file = fopen(argv[1], "r");
     if(file == NULL){
         cerr<<strerror(errno)<<"\n";
         exit(0);
     }
 
+    // cout << "top[num1][num2] = num3\n";
     int num1, num2, num3;
     while(fscanf(file, "%d", &num1) != EOF && fscanf(file, "%d", &num2) != EOF && fscanf(file, "%d", &num3) != EOF){
+        // cout << "top[" << num1 << "][" << num2 << "] = " << num3 << "\n";
         top[num1][num2] = num3;
         top[num2][num1] = num3;
         nodes.insert(num1);
@@ -103,18 +108,27 @@ int main(int argc, char **argv){
     }
 
     fclose(file);
+    // END Read topology file
 
-    file = fopen(argv[2], "r");
-    if(file == NULL){
+    // START Read message file
+    std::ifstream input(argv[2]);
+    if(input.fail()){
         cerr<<strerror(errno)<<"\n";
         exit(0);
     }
-
-    int num5, num6;
-    char mess[80];
-    while(fscanf(file, "%d", &num5) != EOF && fscanf(file, "%d", &num6) != EOF && fscanf(file, "%s", mess) != EOF){
-        message[num5] = mess;
+    std::string line;
+    while( std::getline( input, line ) ) {
+        class message message(line);
+        std::cout << message.to_string();
     }
+
+    // int num5, num6;
+    // char mess[80];
+    // cout << "message[num5] = mess\n";
+    // while(fscanf(file, "%d", &num5) != EOF && fscanf(file, "%d", &num6) != EOF && fscanf(file, "%s", mess) != EOF){
+    //     cout << "message[" << num5 << "] = " << mess << "\n";
+    //     message[num5] = mess;
+    // }
 
     //  GENERAL ALG:
     // START ACCEPTING CONNECTIONS FROM NODES
