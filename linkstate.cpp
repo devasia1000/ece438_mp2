@@ -20,11 +20,21 @@
 #define MAXDATASIZE 2000
 #define PORT "6000"
 
+
+
+/*************** START TASKS TO FINISH *************
+
+1) IMPLEMENT MESSAGE SENDING BETWEEN CLIENTS AFTER CONVERGENCE
+
+************ END TASKS TO FINISH ***********/
+
+
+
 // START OF GLOBAL VARIABLES
 long timestamp = -1;
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // stores topology information
 int virtual_id = -1;
-char manager_ip[80]; // ip address of the manager, TODO: PASS IN AS ARG LATER
+char manager_ip[80]; // ip address of the manager
 vector<char*> ip_addresses; // hold ip addresses of neighbours
 vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
 
@@ -123,16 +133,29 @@ void *convergence_checker(void *ptr){
     if(cur_time - timestamp > 5 && timestamp != 0){
       //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
 
-    // print out routing table
+      graph g(virtual_id);
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-          //cout<<top[i][j]<<" ";
+          if(top[i][j] > 0 && top[i][j] != INT_MAX && top[i][j] != 6000){
+            g.addLink(i, j, top[i][j]);
+          }
         }
-        //cout<<"\n";
       }
+
+      vector<PathInfo> info_list = g.getPathInformation();
+
+      for(unsigned int i=0 ; i<info_list.size() ; i++){
+        PathInfo path = info_list[i];
+        cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
+
+        for(unsigned int j=0 ; j<path.path.size() ; j++){
+          cout<<path.path[j]<<" ";
+        }
+        cout<<path.destination<<"\n";
+      }
+
       timestamp = 0;
 
-      dijkstra(top, virtual_id);
     }
   }
 
@@ -257,7 +280,7 @@ void *contactManager(void *ptr) {
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(top[virtual_id][i] > 0){
         if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-          perror("send");
+          //perror("send");
         }
       }
     }
@@ -292,8 +315,6 @@ void add_sockfd(int v_id){
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-
-  // TODO: FIX FORMAT OF PORT AND IP ADDRESS!!
 
   if ((rv = getaddrinfo(ip_addresses[v_id], po.c_str(), &hints, &servinfo)) != 0) {
     //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -527,72 +548,3 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
     update_timestamp();
   }
 }
-
-/********************** DJIKSTRA's ***********************/
-
-void printSolution(int dist[], int n);
-int minDistance(int dist[], bool sptSet[]);
-
-
-// Funtion that implements Dijkstra's single source shortest path algorithm
-// for a graph represented using adjacency matrix representation
-void dijkstra(int graph[MAX_NODE_COUNT][MAX_NODE_COUNT], int src){
-
-     int dist[MAX_NODE_COUNT];     // The output array.  dist[i] will hold the shortest
-                      // distance from src to i
-     int parent[MAX_NODE_COUNT];
-
-     bool sptSet[MAX_NODE_COUNT]; // sptSet[i] will true if vertex i is included in shortest
-                     // path tree or shortest distance from src to i is finalized
-
-     // Initialize all distances as INFINITE and stpSet[] as false
-     for (int i = 0; i < MAX_NODE_COUNT; i++)
-      dist[i] = INT_MAX, sptSet[i] = false;
-
-     // Distance of source vertex from itself is always 0
-    dist[src] = 0;
-
-     // Find shortest path for all vertices
-    for (int count = 0; count < MAX_NODE_COUNT-1; count++){
-
-       // Pick the minimum distance vertex from the set of vertices not
-       // yet processed. u is always equal to src in first iteration.
-     int u = minDistance(dist, sptSet);
-
-       // Mark the picked vertex as processed
-     sptSet[u] = true;
-
-       // Update dist value of the adjacent vertices of the picked vertex.
-     for (int v = 0; v < MAX_NODE_COUNT; v++)
-
-         // Update dist[v] only if is not in sptSet, there is an edge from 
-         // u to v, and total weight of path from src to  v through u is 
-         // smaller than current value of dist[v]
-       if (!sptSet[v] && graph[u][v] && dist[u] != INT_MAX 
-         && dist[u]+graph[u][v] < dist[v])
-        dist[v] = dist[u] + graph[u][v];
-      parent[v] = u;
-    }
-
-     // print the constructed distance array
-    printSolution(dist, MAX_NODE_COUNT);
-  }
-
-  void printSolution(int dist[], int n){
-
-   printf("Vertex   Distance from Source\n");
-   for (int i = 0; i < MAX_NODE_COUNT; i++)
-    printf("%d \t\t %d\n", i, dist[i]);
-}
-
-int minDistance(int dist[], bool sptSet[]){
-
-   // Initialize min value
- int min = INT_MAX, min_index;
- 
- for (int v = 0; v < MAX_NODE_COUNT; v++)
-   if (sptSet[v] == false && dist[v] <= min)
-     min = dist[v], min_index = v;
-
-   return min_index;
- }

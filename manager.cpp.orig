@@ -130,6 +130,7 @@ int main(int argc, char **argv){
         std::cout << message.to_string();
     }
 
+<<<<<<< HEAD
     // int num5, num6;
     // char mess[80];
     // cout << "message[num5] = mess\n";
@@ -147,6 +148,8 @@ int main(int argc, char **argv){
     // ACCEPT INPUT FROM STDIN
     // REPEAT
 
+=======
+>>>>>>> 5d80533e0cf6fb55591a314c4f7cfe43fbac2f12
     /****************************** START ACCEPTING CONNECTIONS FROM NODES **************************/
 
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
