@@ -49,6 +49,7 @@ void *startServer(void *ptr); // listens to incoming connections from neighbours
 void *handle_client(void *ptr); // handle a single client connection
 void add_sockfd(int virtual_id); // opens a socket to nighbour using and stores sockfd in 'sock_fd' vector
 void *convergence_checker(void *ptr); // checks for convergence
+void dijkstra(int graph[MAX_NODE_COUNT][MAX_NODE_COUNT], int src);
 // END OF FUNCTION DEFINITIONS
 
 
@@ -104,11 +105,11 @@ int main(int argc, char **argv) {
     }
   }
 
-  cout<<__func__<<" : started manager thread\n";
+  //cout<<__func__<<" : started manager thread\n";
   pthread_t manager_thread;
   pthread_create( &manager_thread, NULL, contactManager, NULL);
 
-  cout<<__func__<<" : started convergence checker thread\n";
+  //cout<<__func__<<" : started convergence checker thread\n";
   pthread_t convergence;
   pthread_create(&convergence, NULL, convergence_checker, NULL);
   pthread_join(convergence, NULL);
@@ -120,16 +121,18 @@ void *convergence_checker(void *ptr){
 
     long cur_time = time(0);
     if(cur_time - timestamp > 5 && timestamp != 0){
-      cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
+      //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
 
     // print out routing table
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-          cout<<top[i][j]<<" ";
+          //cout<<top[i][j]<<" ";
         }
-        cout<<"\n";
+        //cout<<"\n";
       }
       timestamp = 0;
+
+      dijkstra(top, virtual_id);
     }
   }
 
@@ -157,7 +160,7 @@ void *contactManager(void *ptr) {
   hints.ai_socktype = SOCK_STREAM;
 
   if ((rv = getaddrinfo(manager_ip, port.c_str(), &hints, &servinfo)) != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     exit(0);
   }
 
@@ -177,12 +180,12 @@ void *contactManager(void *ptr) {
   }
 
   if (p == NULL) {
-    fprintf(stderr, "client: failed to connect\n");
+    //fprintf(stderr, "client: failed to connect\n");
     exit(0);
   }
 
   inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-  printf("client: connecting to %s\n", s);
+  //printf("client: connecting to %s\n", s);
   freeaddrinfo(servinfo);
 
   while(1) {
@@ -201,7 +204,7 @@ void *contactManager(void *ptr) {
 
   /* read is sucsessful */
       if(virtual_id == -1) {
-        cout<<__func__<<" : going to assign virtual id\n";
+        //cout<<__func__<<" : going to assign virtual id\n";
         if(buf[1] == '\0') {
           virtual_id = buf[0];
         }
@@ -211,12 +214,12 @@ void *contactManager(void *ptr) {
         }
 
     virtual_id = virtual_id - 48; // account for conversion from ASCII to int
-    cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
+    //cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
 
 
     pthread_t link_state_listener;
     pthread_create(&link_state_listener, NULL, startServer, NULL);
-    cout<<__func__<<" : started link state listener thread\n";
+    //cout<<__func__<<" : started link state listener thread\n";
   }
 
   else {
@@ -226,7 +229,7 @@ void *contactManager(void *ptr) {
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
-        cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
+        //cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
         ip_addresses[i] = new char[20];
         strcpy(ip_addresses[i], info.neighbours[i]);
         add_sockfd(i);
@@ -235,7 +238,7 @@ void *contactManager(void *ptr) {
 
     handle_routing_table_update(info.top);
 
-    cout<<__func__<<" : recieved neighbour information from manager:\n";
+    //cout<<__func__<<" : recieved neighbour information from manager:\n";
 
     // ENCODE INFORMATION INTO STRUCT
     char mess[MAXDATASIZE];
@@ -248,6 +251,8 @@ void *contactManager(void *ptr) {
       }
     }
 
+    sleep(2);
+
     memcpy(mess, &message, sizeof(data));
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(top[virtual_id][i] > 0){
@@ -257,7 +262,7 @@ void *contactManager(void *ptr) {
       }
     }
 
-    cout<<__func__<<" : sent routing information to neighbour\n";
+    //cout<<__func__<<" : sent routing information to neighbour\n";
     update_timestamp();
   }
 }
@@ -265,7 +270,7 @@ void *contactManager(void *ptr) {
 else if (numbytes == 0) {
       /* socket has been closed */
   close(sockfd);
-  printf("closing socket\n");
+  //printf("closing socket\n");
 }
 }
 }
@@ -291,7 +296,7 @@ void add_sockfd(int v_id){
   // TODO: FIX FORMAT OF PORT AND IP ADDRESS!!
 
   if ((rv = getaddrinfo(ip_addresses[v_id], po.c_str(), &hints, &servinfo)) != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     exit(1);
   }
 
@@ -313,19 +318,19 @@ void add_sockfd(int v_id){
 }
 
 if (p == NULL) {
-  fprintf(stderr, "client: failed to connect\n");
+  //fprintf(stderr, "client: failed to connect\n");
   exit(1);
 }
 
 inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
   s, sizeof s);
-printf("client: connecting to %s\n", s);
+//printf("client: connecting to %s\n", s);
 
 freeaddrinfo(servinfo); // all done with this structure
 
 sock_fd[v_id] = sockfd;
 
-cout<<"stored socket fd for "<<v_id<<"\n";
+//cout<<"stored socket fd for "<<v_id<<"\n";
 
 }
 
@@ -358,7 +363,7 @@ hints.ai_flags = AI_PASSIVE; // use my IP
 int port = atoi(PORT) + virtual_id;
 
 if ((rv = getaddrinfo(NULL, convertToString(port), &hints, &servinfo)) != 0) {
-  fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+  //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
   exit(1);
 }
 
@@ -386,7 +391,7 @@ break;
 }
 
 if (p == NULL)  {
-  fprintf(stderr, "server: failed to bind\n");
+  //fprintf(stderr, "server: failed to bind\n");
   exit(1);
 }
 
@@ -405,7 +410,7 @@ if (sigaction(SIGCHLD, &sa, NULL) == -1) {
   exit(1);
 }
 
-cout<<"Neighbour server: waiting for connections on port "<<convertToString(port)<<"\n";
+//cout<<"Neighbour server: waiting for connections on port "<<convertToString(port)<<"\n";
 
 while(1) {  // main accept() loop
 
@@ -417,7 +422,7 @@ while(1) {  // main accept() loop
   }
 
   inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-  printf("Neighbour server: got connection from %s\n", s);
+  //printf("Neighbour server: got connection from %s\n", s);
 
   // create new thread to handle client
   pthread_t client_manager;
@@ -434,7 +439,7 @@ void *handle_client(void *ptr){
 
   while(1){
 
-    usleep(40);
+    usleep(50);
 
 // read data from connected client 
     int numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
@@ -453,16 +458,16 @@ void *handle_client(void *ptr){
 
       handle_routing_table_update(info.top);
 
-      unsigned int prev_virtual_id = info.sender_id;
+      //unsigned int prev_virtual_id = info.sender_id;
       info.sender_id = virtual_id;
       info.ttl--;
 
 
-      cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
+      //cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
 
         // ENCODE STRUCT INTO CHAR ARRAY AND SENd
       char buf2[MAXDATASIZE];
-      cout<<"bytes read"<<numbytes<<"\n";
+      //cout<<"bytes read"<<numbytes<<"\n";
       memcpy(buf2, &info, sizeof(data));
 
       if(info.ttl > 0){
@@ -471,30 +476,46 @@ void *handle_client(void *ptr){
         for(unsigned int i=0 ; i<sock_fd.size() ; i++){
           if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
 
-            cout<<"\tresending to "<<i<<"\n";
-            if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
-              perror("send");
-            }
-
-            update_timestamp();
+          //cout<<"\tresending to "<<i<<"\n";
+          if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
+            //perror("send");
           }
+
+          update_timestamp();
         }
-
       }
-    }
 
-    else if (numbytes == 0) {
-        /* socket has been closed */
-      close(sockfd);
-      printf("closing socket\n");
     }
   }
+
+  else if (numbytes == 0) {
+        /* socket has been closed */
+    close(sockfd);
+    //printf("closing socket\n");
+  }
+}
 }
 
 // handle updates to the routing table
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
 
   if(timestamp <= time(0)){
+
+    for(int i=1 ; i<17 ; i++){
+
+      if(x[virtual_id][i] != top[virtual_id][i] && x[virtual_id][i] != 0){
+
+        // we use the value INT_MAX to show links have been broken
+        if(x[virtual_id][i] == INT_MAX){
+          cout<<"no longer linked to node "<<i<<"\n";
+        } 
+
+        else {
+          cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
+        }
+      }
+    }
+
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       for(int j=0 ; j<MAX_NODE_COUNT ; j++){
         if(x[i][j] > 0){
@@ -506,3 +527,72 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
     update_timestamp();
   }
 }
+
+/********************** DJIKSTRA's ***********************/
+
+void printSolution(int dist[], int n);
+int minDistance(int dist[], bool sptSet[]);
+
+
+// Funtion that implements Dijkstra's single source shortest path algorithm
+// for a graph represented using adjacency matrix representation
+void dijkstra(int graph[MAX_NODE_COUNT][MAX_NODE_COUNT], int src){
+
+     int dist[MAX_NODE_COUNT];     // The output array.  dist[i] will hold the shortest
+                      // distance from src to i
+     int parent[MAX_NODE_COUNT];
+
+     bool sptSet[MAX_NODE_COUNT]; // sptSet[i] will true if vertex i is included in shortest
+                     // path tree or shortest distance from src to i is finalized
+
+     // Initialize all distances as INFINITE and stpSet[] as false
+     for (int i = 0; i < MAX_NODE_COUNT; i++)
+      dist[i] = INT_MAX, sptSet[i] = false;
+
+     // Distance of source vertex from itself is always 0
+    dist[src] = 0;
+
+     // Find shortest path for all vertices
+    for (int count = 0; count < MAX_NODE_COUNT-1; count++){
+
+       // Pick the minimum distance vertex from the set of vertices not
+       // yet processed. u is always equal to src in first iteration.
+     int u = minDistance(dist, sptSet);
+
+       // Mark the picked vertex as processed
+     sptSet[u] = true;
+
+       // Update dist value of the adjacent vertices of the picked vertex.
+     for (int v = 0; v < MAX_NODE_COUNT; v++)
+
+         // Update dist[v] only if is not in sptSet, there is an edge from 
+         // u to v, and total weight of path from src to  v through u is 
+         // smaller than current value of dist[v]
+       if (!sptSet[v] && graph[u][v] && dist[u] != INT_MAX 
+         && dist[u]+graph[u][v] < dist[v])
+        dist[v] = dist[u] + graph[u][v];
+      parent[v] = u;
+    }
+
+     // print the constructed distance array
+    printSolution(dist, MAX_NODE_COUNT);
+  }
+
+  void printSolution(int dist[], int n){
+
+   printf("Vertex   Distance from Source\n");
+   for (int i = 0; i < MAX_NODE_COUNT; i++)
+    printf("%d \t\t %d\n", i, dist[i]);
+}
+
+int minDistance(int dist[], bool sptSet[]){
+
+   // Initialize min value
+ int min = INT_MAX, min_index;
+ 
+ for (int v = 0; v < MAX_NODE_COUNT; v++)
+   if (sptSet[v] == false && dist[v] <= min)
+     min = dist[v], min_index = v;
+
+   return min_index;
+ }
