@@ -9,7 +9,7 @@
 #include <vector>
 #include <iterator>
 #include <regex.h> 
-
+#include <string.h>
 
 
 
