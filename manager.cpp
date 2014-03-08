@@ -57,9 +57,16 @@ char* convertToString(int number){
 }
 
 // GLOBAL VARIBALES 
-struct update{
+struct neighbour_update{
     char neighbours[MAX_NODE_COUNT][20];
     int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+};
+
+struct message_update{ // this struct will be serialized and sent over a socket to the client
+    int source;
+    int destination;
+    int hops[MAX_NODE_COUNT];
+    char message[200];
 };
 
 vector<int> sockfd_array; // holds socket file descriptors to each node
@@ -72,7 +79,6 @@ message msgs[MAX_NODE_COUNT];
 
 // START FUNCTION DECLARATIONS
 void *update_client(void *ptr);
-update prepare_send(int virtual_id);
 void *stdin_reader(void *ptr);
 // END FUNCTION DECLARATIONS
 
@@ -321,7 +327,7 @@ void *update_client(void *ptr){
 
     //cout<<"updating virtual id "<<virtual_id<<"\n";
 
-    update info;
+    neighbour_update info;
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         info.neighbours[i][0] = '\0';
@@ -345,7 +351,7 @@ void *update_client(void *ptr){
     }
 
     char buf[MAXDATASIZE];
-    memcpy(buf, &info, sizeof(update));
+    memcpy(buf, &info, sizeof(neighbour_update));
 
     if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
         perror("send");
