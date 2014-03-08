@@ -20,6 +20,16 @@
 #define MAXDATASIZE 2000
 #define PORT "6000"
 
+
+
+/*************** START TASKS TO FINISH *************
+
+1) IMPLEMENT MESSAGE SENDING BETWEEN CLIENTS AFTER CONVERGENCE
+
+************ END TASKS TO FINISH ***********/
+
+
+
 // START OF GLOBAL VARIABLES
 long timestamp = -1;
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // stores topology information

@@ -20,6 +20,13 @@
 #define MAXDATASIZE 2000
 #define PORT "6000"
 
+/*************** START TASKS TO FINISH  *************
+
+1) IMPLEMENT READING FROM STDIN AND UPDATING APPROPIATE CLIENT
+2) IMPLEMENT MESSAGE SENDING BETWEEN CLIENTS AFTER CONVERGENCE
+
+************ END TASKS TO FINISH ***********/
+
 void sigchld_handler(int s){
 
     while(waitpid(-1, NULL, WNOHANG) > 0);
@@ -64,6 +71,7 @@ vector<char*> message; // used to hold messages to be sent between nodes
 // START FUNCTION DECLARATIONS
 void *update_client(void *ptr);
 update prepare_send(int virtual_id);
+void *stdin_reader(void *ptr);
 // END FUNCTION DECLARATIONS
 
 int main(int argc, char **argv){
@@ -180,6 +188,9 @@ if (p == NULL)  {
         exit(1);
     }
 
+    pthread_t stdin_listen;
+    pthread_create( &stdin_listen, NULL, stdin_reader, NULL);
+
     printf("server: waiting for connections...\n");
 
     while(1) {  // main accept() loop
@@ -194,7 +205,7 @@ if (p == NULL)  {
         inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
             s, sizeof s);
-        printf("server: got connection from %s\n", s);
+        //printf("server: got connection from %s\n", s);
         
         set<int>::iterator it = nodes.begin();
         int virtual_id = *it;
@@ -239,6 +250,34 @@ if (p == NULL)  {
     return 0;
 }
 
+// read from stdin and update appropiate client
+void *stdin_reader(void *ptr){
+    sleep(2);
+
+    while(true){
+
+        cout<<"Enter a topology update:\n";
+
+        int node_id, dest_node, link_cost;
+        cin>>node_id>>dest_node>>link_cost;
+
+        top[node_id][dest_node] = link_cost;
+        top[dest_node][node_id] = link_cost;
+
+        // send topology and neighbour information to all clients
+        for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+            if(sockfd_array[i] != 0){
+                int *temp = new int;
+                *temp = i; // IMPORTANT: used to store i and protect against change while for loop is running
+
+                pthread_t update_thread;
+                pthread_create( &update_thread, NULL, update_client, temp);
+            }
+        }
+    }
+
+    return NULL;
+}
 
 void *update_client(void *ptr){
 
