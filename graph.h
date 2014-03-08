@@ -33,6 +33,8 @@ class graph{
         int djikstra();
         int djikstra_helper();
 
+        int printSolution(int dist[]);
+
     public:
         
         // stores topology information
@@ -40,7 +42,7 @@ class graph{
 
         graph(int src);
         void addLink(int node1, int node2, int cost);
-        vector<PathInfo> getShortestPathInformation();
+        vector<PathInfo> getPathInformation();
 
 
         /* 

@@ -24,7 +24,7 @@
 long timestamp = -1;
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // stores topology information
 int virtual_id = -1;
-char manager_ip[80]; // ip address of the manager, TODO: PASS IN AS ARG LATER
+char manager_ip[80]; // ip address of the manager
 vector<char*> ip_addresses; // hold ip addresses of neighbours
 vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
 
@@ -123,15 +123,6 @@ void *convergence_checker(void *ptr){
     if(cur_time - timestamp > 5 && timestamp != 0){
       //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
 
-    // print out routing table
-      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-          //cout<<top[i][j]<<" ";
-        }
-        //cout<<"\n";
-      }
-      timestamp = 0;
-
       graph g(virtual_id);
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         for(int j=0 ; j<MAX_NODE_COUNT ; j++){
@@ -141,13 +132,19 @@ void *convergence_checker(void *ptr){
         }
       }
 
-      vector<PathInfo> p = g.getShortestPathInformation();
-      PathInfo path_info = p[0];
-      cout<<path_info.destination<<" "<<path_info.cost<<" ";
-      for(unsigned int i=0 ; i<path_info.path.size() ; i++){
-        cout<<path_info.path[i]<<" ";
+      vector<PathInfo> info_list = g.getPathInformation();
+
+      for(unsigned int i=0 ; i<info_list.size() ; i++){
+        PathInfo path = info_list[i];
+        cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
+
+        for(unsigned int j=0 ; j<path.path.size() ; j++){
+          cout<<path.path[j]<<" ";
+        }
+        cout<<path.destination<<"\n";
       }
-      cout<<"\n";
+
+      timestamp = 0;
 
     }
   }
@@ -273,7 +270,7 @@ void *contactManager(void *ptr) {
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(top[virtual_id][i] > 0){
         if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-          perror("send");
+          //perror("send");
         }
       }
     }
@@ -308,8 +305,6 @@ void add_sockfd(int v_id){
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-
-  // TODO: FIX FORMAT OF PORT AND IP ADDRESS!!
 
   if ((rv = getaddrinfo(ip_addresses[v_id], po.c_str(), &hints, &servinfo)) != 0) {
     //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));

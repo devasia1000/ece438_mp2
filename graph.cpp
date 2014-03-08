@@ -17,15 +17,18 @@ graph::graph(int src){
 }
 
 void graph::addLink(int node1, int node2, int cost){
-    if(cost <= 0){
+    // IMPORTANT NOTE: TO BREAK LINES BETWEEN NODES, SEND A NEGATIVE EDGE WEIGHT!
+    if(cost <= 0 || cost == INT_MAX){
         top[node1][node2] = 0;
         top[node2][node1] = 0;
-        return;
+
     }
 
-    top[node1][node2] = cost;
-    top[node2][node1] = cost;
-
+    else {
+        top[node1][node2] = cost;
+        top[node2][node1] = cost;
+        //cout<<"link added between "<<node1<<" and "<<node2<<"\n";
+    }
 }
 
 int graph::minDistance(int dist[], bool sptSet[]){
@@ -58,6 +61,7 @@ int graph::djikstra(){
     for (int i = 0; i < MAX_NODE_COUNT; i++){
         dist[i] = INT_MAX;
         sptSet[i] = false;
+        parent[i] = -1;
     }
 
     // Distance of source vertex from itself is always 0
@@ -92,19 +96,31 @@ int graph::djikstra(){
     return 1;
 }
 
+int graph::printSolution(int dist[]){
+
+   printf("Vertex   Distance from Source\n");
+   for (int i = 0; i < MAX_NODE_COUNT; i++)
+      printf("%d \t\t %d\n", i, dist[i]);
+
+  return 0;
+}
+
 int graph::djikstra_helper(){
     
     path_info.clear();
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        stack<int> temp;
+
         if(parent[i] != -1){
-            
+
             PathInfo path;
+            path.path.clear();
 
             path.destination = i;
             path.cost = pathcost[i];
             path.source = source;
+
+            stack<int> temp;
 
             int j = i;
             while(parent[j] != source){
@@ -113,7 +129,8 @@ int graph::djikstra_helper(){
             }
 
             while(!temp.empty()){
-                path.path.push_back(temp.top());
+                int x = temp.top();
+                path.path.push_back(x);
                 temp.pop();
             }
 
@@ -124,8 +141,9 @@ int graph::djikstra_helper(){
     return 0;
 }
 
-vector<PathInfo> graph::getShortestPathInformation(){
+vector<PathInfo> graph::getPathInformation(){
     djikstra();
+
     return path_info;
 }
 

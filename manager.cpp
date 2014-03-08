@@ -116,15 +116,6 @@ int main(int argc, char **argv){
         message[num5] = mess;
     }
 
-    //  GENERAL ALG:
-    // START ACCEPTING CONNECTIONS FROM NODES
-    // AFTER ACCEPTING CONNECTION, ASSIGN EACH NODE A VIRTUAL ID
-    // SEND MESSAGE DATA TO NODES
-    // SEND NEIGHBOUR DATA AND COST TO EACH NODE
-    // WAIT FOR CONVERGENCE
-    // ACCEPT INPUT FROM STDIN
-    // REPEAT
-
     /****************************** START ACCEPTING CONNECTIONS FROM NODES **************************/
 
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -243,10 +234,6 @@ if (p == NULL)  {
                 pthread_create( &update_thread, NULL, update_client, temp);
             }
         }
-
-        //  this is the server process
-
-        // WAIT FOR CONVERGENCE
     }
 
     return 0;
