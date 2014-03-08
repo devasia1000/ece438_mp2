@@ -73,7 +73,6 @@ vector<int> sockfd_array; // holds socket file descriptors to each node
 vector<char*> ip_address_array; // holds ip addresses of nodes
 set<int> nodes; // used to store and assign virtual id's to nodes
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
-// std::vector<message> msgs; // used to hold msgs to be sent between nodes
 message msgs[MAX_NODE_COUNT];
 vector<message_update> message_list;
 // END OF GLOBAL VARIABLES
@@ -148,19 +147,6 @@ int main(int argc, char **argv){
 
         message_list.push_back(mess_update);
     }
-    // END Read message file
-    for (int i = 0; i < num_of_msgs; ++i){
-        std::cout << msgs[i].to_string();
-    }
-
-    //  GENERAL ALG:
-    // START ACCEPTING CONNECTIONS FROM NODES
-    // AFTER ACCEPTING CONNECTION, ASSIGN EACH NODE A VIRTUAL ID
-    // SEND MESSAGE DATA TO NODES
-    // SEND NEIGHBOUR DATA AND COST TO EACH NODE
-    // WAIT FOR CONVERGENCE
-    // ACCEPT INPUT FROM STDIN
-    // REPEAT
 
     /****************************** START ACCEPTING CONNECTIONS FROM NODES **************************/
 
