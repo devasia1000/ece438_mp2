@@ -101,7 +101,7 @@ int graph::djikstra_helper(){
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         stack<int> temp;
-        if(parent[i]!=-1){
+        if(parent[i] != -1){
             
             path.destination = i;
             path.cost = pathcost[i];

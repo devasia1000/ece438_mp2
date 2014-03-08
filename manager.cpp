@@ -68,6 +68,31 @@ update prepare_send(int virtual_id);
 
 int main(int argc, char **argv){
 
+    /************ start testing graphing library *****************/
+
+    graph g(2);
+
+    g.addLink(2, 5, 4);
+    g.addLink(2, 1, 8);
+    g.addLink(2, 3, 3);
+    g.addLink(4, 1, 1);
+    g.addLink(4, 5, 1);
+
+    vector<PathInfo> path_info = g.getShortestPathInformation();
+    for(unsigned int i=0 ; i<path_info.size() ; i++){
+        PathInfo path = path_info[i];
+
+        cout<<"from "<<path.source<<" to "<<path.destination<<": ";
+        for(unsigned int j=0 ; j<path.path.size() ; j++){
+            cout<<path.path[j]<<" ";
+        }
+        cout<<"\n";
+    }
+
+    /************ end testing graphing library ******************/
+
+
+
     if(argc != 3){
         cerr<<"Usage: ./manager <topology_file> <message_file>\n";
         return 1;

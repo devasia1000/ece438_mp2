@@ -132,7 +132,23 @@ void *convergence_checker(void *ptr){
       }
       timestamp = 0;
 
-      dijkstra(top, virtual_id);
+      graph g(virtual_id);
+      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+          if(top[i][j] > 0 && top[i][j] != INT_MAX && top[i][j] != 6000){
+            g.addLink(i, j, top[i][j]);
+          }
+        }
+      }
+
+      vector<PathInfo> p = g.getShortestPathInformation();
+      PathInfo path_info = p[0];
+      cout<<path_info.destination<<" "<<path_info.cost<<" ";
+      for(unsigned int i=0 ; i<path_info.path.size() ; i++){
+        cout<<path_info.path[i]<<" ";
+      }
+      cout<<"\n";
+
     }
   }
 
@@ -527,72 +543,3 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
     update_timestamp();
   }
 }
-
-/********************** DJIKSTRA's ***********************/
-
-void printSolution(int dist[], int n);
-int minDistance(int dist[], bool sptSet[]);
-
-
-// Funtion that implements Dijkstra's single source shortest path algorithm
-// for a graph represented using adjacency matrix representation
-void dijkstra(int graph[MAX_NODE_COUNT][MAX_NODE_COUNT], int src){
-
-     int dist[MAX_NODE_COUNT];     // The output array.  dist[i] will hold the shortest
-                      // distance from src to i
-     int parent[MAX_NODE_COUNT];
-
-     bool sptSet[MAX_NODE_COUNT]; // sptSet[i] will true if vertex i is included in shortest
-                     // path tree or shortest distance from src to i is finalized
-
-     // Initialize all distances as INFINITE and stpSet[] as false
-     for (int i = 0; i < MAX_NODE_COUNT; i++)
-      dist[i] = INT_MAX, sptSet[i] = false;
-
-     // Distance of source vertex from itself is always 0
-    dist[src] = 0;
-
-     // Find shortest path for all vertices
-    for (int count = 0; count < MAX_NODE_COUNT-1; count++){
-
-       // Pick the minimum distance vertex from the set of vertices not
-       // yet processed. u is always equal to src in first iteration.
-     int u = minDistance(dist, sptSet);
-
-       // Mark the picked vertex as processed
-     sptSet[u] = true;
-
-       // Update dist value of the adjacent vertices of the picked vertex.
-     for (int v = 0; v < MAX_NODE_COUNT; v++)
-
-         // Update dist[v] only if is not in sptSet, there is an edge from 
-         // u to v, and total weight of path from src to  v through u is 
-         // smaller than current value of dist[v]
-       if (!sptSet[v] && graph[u][v] && dist[u] != INT_MAX 
-         && dist[u]+graph[u][v] < dist[v])
-        dist[v] = dist[u] + graph[u][v];
-      parent[v] = u;
-    }
-
-     // print the constructed distance array
-    printSolution(dist, MAX_NODE_COUNT);
-  }
-
-  void printSolution(int dist[], int n){
-
-   printf("Vertex   Distance from Source\n");
-   for (int i = 0; i < MAX_NODE_COUNT; i++)
-    printf("%d \t\t %d\n", i, dist[i]);
-}
-
-int minDistance(int dist[], bool sptSet[]){
-
-   // Initialize min value
- int min = INT_MAX, min_index;
- 
- for (int v = 0; v < MAX_NODE_COUNT; v++)
-   if (sptSet[v] == false && dist[v] <= min)
-     min = dist[v], min_index = v;
-
-   return min_index;
- }
