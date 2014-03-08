@@ -75,6 +75,7 @@ set<int> nodes; // used to store and assign virtual id's to nodes
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
 // std::vector<message> msgs; // used to hold msgs to be sent between nodes
 message msgs[MAX_NODE_COUNT];
+vector<message_update> message_list;
 // END OF GLOBAL VARIABLES
 
 // START FUNCTION DECLARATIONS
@@ -91,8 +92,6 @@ int main(int argc, char **argv){
 
     sockfd_array.resize(MAX_NODE_COUNT);
     ip_address_array.resize(MAX_NODE_COUNT);
-    // msgs.resize(MAX_NODE_COUNT);
-
     // clear all data
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
 
@@ -140,20 +139,19 @@ int main(int argc, char **argv){
         msgs[i] = message;
         i++;
         num_of_msgs = i;
+
+        // wrap message information in a structure
+        message_update mess_update;
+        mess_update.source = message.get_from_node();
+        mess_update.dest = message.get_to_node();
+        strcpy(mess_update.message, message.get_msg().c_str());
+
+        message_list.push_back(mess_update);
     }
     // END Read message file
-    for (int i = 0; i < num_of_msgs; ++i)
-    {
+    for (int i = 0; i < num_of_msgs; ++i){
         std::cout << msgs[i].to_string();
     }
-
-    // int num5, num6;
-    // char mess[80];
-    // cout << "message[num5] = mess\n";
-    // while(fscanf(file, "%d", &num5) != EOF && fscanf(file, "%d", &num6) != EOF && fscanf(file, "%s", mess) != EOF){
-    //     cout << "message[" << num5 << "] = " << mess << "\n";
-    //     message[num5] = mess;
-    // }
 
     //  GENERAL ALG:
     // START ACCEPTING CONNECTIONS FROM NODES
