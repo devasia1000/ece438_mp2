@@ -26,7 +26,6 @@ void graph::addLink(int node1, int node2, int cost){
     top[node1][node2] = cost;
     top[node2][node1] = cost;
 
-    djikstra();
 }
 
 int graph::minDistance(int dist[], bool sptSet[]){
@@ -97,12 +96,12 @@ int graph::djikstra_helper(){
     
     path_info.clear();
 
-    PathInfo path;
-
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         stack<int> temp;
         if(parent[i] != -1){
             
+            PathInfo path;
+
             path.destination = i;
             path.cost = pathcost[i];
             path.source = source;
@@ -126,6 +125,7 @@ int graph::djikstra_helper(){
 }
 
 vector<PathInfo> graph::getShortestPathInformation(){
+    djikstra();
     return path_info;
 }
 
