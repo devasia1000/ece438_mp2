@@ -40,7 +40,6 @@ void *get_in_addr(struct sockaddr *sa){
     if (sa->sa_family == AF_INET) {
         return &(((struct sockaddr_in*)sa)->sin_addr);
     }
-
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
@@ -67,7 +66,8 @@ vector<int> sockfd_array; // holds socket file descriptors to each node
 vector<char*> ip_address_array; // holds ip addresses of nodes
 set<int> nodes; // used to store and assign virtual id's to nodes
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
-vector<char*> message; // used to hold messages to be sent between nodes
+// std::vector<message> msgs; // used to hold msgs to be sent between nodes
+message msgs[MAX_NODE_COUNT];
 // END OF GLOBAL VARIABLES
 
 // START FUNCTION DECLARATIONS
@@ -85,7 +85,7 @@ int main(int argc, char **argv){
 
     sockfd_array.resize(MAX_NODE_COUNT);
     ip_address_array.resize(MAX_NODE_COUNT);
-    message.resize(MAX_NODE_COUNT);
+    // msgs.resize(MAX_NODE_COUNT);
 
     // clear all data
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
@@ -121,13 +121,24 @@ int main(int argc, char **argv){
     // START Read message file
     std::ifstream input(argv[2]);
     if(input.fail()){
-        cerr<<strerror(errno)<<"\n";
+        // cerr<<strerror(errno)<<"\n";
         exit(0);
     }
+
     std::string line;
+    int i = 0;
+    int num_of_msgs = 0;
     while( std::getline( input, line ) ) {
         class message message(line);
-        std::cout << message.to_string();
+        // std::cout << message.to_string();
+        msgs[i] = message;
+        i++;
+        num_of_msgs = i;
+    }
+    // END Read message file
+    for (int i = 0; i < num_of_msgs; ++i)
+    {
+        std::cout << msgs[i].to_string();
     }
 
     // int num5, num6;

@@ -18,12 +18,14 @@ private:
     int to_node;
     std::string msg;
 public:
+    message();
     message(std::string input);
     int get_from_node();
     int get_to_node();
     std::string get_msg();
     std::string to_string();
 };
+message::message(){}
 message::message(std::string input){
     std::smatch m;
     std::regex reg("[a-zA-z]");
