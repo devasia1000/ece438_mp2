@@ -193,11 +193,12 @@ int main(int argc, char **argv){
     exit(1);
 }
 
-// if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-//     close(sockfd);
-//     perror("server: bind");
-//     continue;
-// }
+// please don't comment this out, it is required to bind the server to a port
+if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+   close(sockfd);
+   perror("server: bind");
+   continue;
+}
 
 break;
 }
