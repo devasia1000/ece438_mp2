@@ -193,11 +193,11 @@ int main(int argc, char **argv){
     exit(1);
 }
 
-if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-    close(sockfd);
-    perror("server: bind");
-    continue;
-}
+// if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+//     close(sockfd);
+//     perror("server: bind");
+//     continue;
+// }
 
 break;
 }
