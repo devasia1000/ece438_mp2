@@ -159,10 +159,10 @@ void *convergence_checker(void *ptr){
         }
       }
 
-      info_list = g.getPathInformation();
+      path_info_list = g.getPathInformation();
 
-      for(unsigned int i=0 ; i<info_list.size() ; i++){
-        PathInfo path = info_list[i];
+      for(unsigned int i=0 ; i<path_info_list.size() ; i++){
+        PathInfo path = path_info_list[i];
         cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
 
         for(unsigned int j=0 ; j<path.path.size() ; j++){
