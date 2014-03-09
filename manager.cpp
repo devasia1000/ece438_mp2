@@ -17,7 +17,7 @@
 #include <sstream>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 2000
+#define MAXDATASIZE 3000
 #define PORT "6000"
 
 /*************** START TASKS TO FINISH  *************
