@@ -23,8 +23,6 @@
 // constants used to specify type of packet recieved
 #define MAXDATASIZE 3000
 #define VIRTUAL_MAXDATASIZE 10 // packet is from manager and contains virtual id information
-#define NEIGHBOUR_MAXDATASIZE 2000 // packet is from manager or neighbour and contains information about neighbours ip addresses
-#define MESSAGE_MAXDATASIZE 1000 // packet is from manager or neighbours and contains message information
 
 #define PORT "6000"
 
@@ -63,18 +61,20 @@ char* convertToString(int number){
 }
 
 // GLOBAL VARIBALES 
-struct neighbour_update{
+struct update{ // this struct will be serialized and sent over a socket to the client
+    
+    bool neighbour_update; // set this to true if update is for neighbours
+    int ttl;
+    int sender_id;
     char neighbours[MAX_NODE_COUNT][20];
     int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
-};
 
-struct message_update{ // this struct will be serialized and sent over a socket to the client
+    bool message_update; // set this to true if update if for message
     int source;
     int dest;
     int hops[MAX_NODE_COUNT];
     int hops_pos;
     char message[200];
-    bool forward; // set 'true' if client should forward update to next neighbour, set 'false' if otherwise 
 };
 
 vector<int> sockfd_array; // holds socket file descriptors to each node
@@ -82,7 +82,7 @@ vector<char*> ip_address_array; // holds ip addresses of nodes
 set<int> nodes; // used to store and assign virtual id's to nodes
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
 message msgs[MAX_NODE_COUNT];
-vector<message_update> message_list;
+vector<update> message_list;
 // END OF GLOBAL VARIABLES
 
 // START FUNCTION DECLARATIONS
@@ -149,9 +149,11 @@ int main(int argc, char **argv){
         // cout<<num_of_msgs<<"\n";
 
         // wrap message information in a structure
-        message_update mess_update;
+        update mess_update;
+        mess_update.message_update = true;
         mess_update.source = message.get_from_node();
         mess_update.dest = message.get_to_node();
+        mess_update.hops_pos = 0;
         strcpy(mess_update.message, message.get_msg().c_str());
 
         message_list.push_back(mess_update);
@@ -189,7 +191,7 @@ int main(int argc, char **argv){
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
         sizeof(int)) == -1) {
         perror("setsockopt");
-    exit(1);
+        exit(1);
 }
 
 // Sorry didn't realise that there is a std::bind and a ::bind in C++11 
@@ -265,6 +267,7 @@ if (p == NULL)  {
         if (send(sockfd_array[virtual_id], id, VIRTUAL_MAXDATASIZE, 0) == -1){
             perror("send");
         }
+        usleep(100);
 
         // send topology and neighbour information to all clients
         for(int i=0 ; i<MAX_NODE_COUNT ; i++){
@@ -317,7 +320,8 @@ void *update_client(void *ptr){
 
     //cout<<"updating virtual id "<<virtual_id<<"\n";
 
-    neighbour_update info;
+    update info;
+    info.neighbour_update = true;
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         info.neighbours[i][0] = '\0';
@@ -340,12 +344,38 @@ void *update_client(void *ptr){
         }
     }
 
-    char buf[NEIGHBOUR_MAXDATASIZE];
-    memcpy(buf, &info, sizeof(neighbour_update));
+    char buf[MAXDATASIZE];
+    memcpy(buf, &info, sizeof(update));
 
-    if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
+    if (send(sockfd_array[virtual_id], buf, MAXDATASIZE, 0) == -1){
         perror("send");
     }
+    usleep(100);
 
-    return NULL;
+
+    // TODO: send message infomation to client
+    for(vector<update>::iterator it = message_list.begin() ; it != message_list.end() ; ++it){
+
+        char buf2[MAXDATASIZE];
+        if((*it).source == virtual_id){
+
+            update up = *it;
+            message_list.erase(it);
+
+            cout<<"sent message from "<<up.source<<" to "<<up.dest<<" with "<<up.message<<"\n";
+
+            memcpy(buf2, &up, sizeof(update));
+
+            if (send(sockfd_array[virtual_id], buf2, MAXDATASIZE, 0) == -1){
+                perror("send");
+            }
+            usleep(100);
+
+            cout<<"send message update to "<<virtual_id<<"\n";
+        }
+    }
+
+    cout<<"outside for loop\n";
+
+    return (void *) 0;
 }
