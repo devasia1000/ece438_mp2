@@ -19,7 +19,13 @@
 #include <fstream>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 2000
+
+// constants used to specify type of packet recieved
+#define MAXDATASIZE 3000
+#define VIRTUAL_MAXDATASIZE 10 // packet is from manager and contains virtual id information
+#define NEIGHBOUR_MAXDATASIZE 2000 // packet is from manager or neighbour and contains information about neighbours ip addresses
+#define MESSAGE_MAXDATASIZE 1000 // packet is from manager or neighbours and contains message information
+
 #define PORT "6000"
 
 /*************** START TASKS TO FINISH  *************
@@ -64,9 +70,11 @@ struct neighbour_update{
 
 struct message_update{ // this struct will be serialized and sent over a socket to the client
     int source;
-    int destination;
+    int dest;
     int hops[MAX_NODE_COUNT];
+    int hops_pos;
     char message[200];
+    bool forward; // set 'true' if client should forward update to next neighbour, set 'false' if otherwise 
 };
 
 vector<int> sockfd_array; // holds socket file descriptors to each node
@@ -138,6 +146,7 @@ int main(int argc, char **argv){
         msgs[i] = message;
         i++;
         num_of_msgs = i;
+        cout<<num_of_msgs<<"\n";
 
         // wrap message information in a structure
         message_update mess_update;
@@ -185,9 +194,9 @@ int main(int argc, char **argv){
 
 // please don't comment this out, it is required to bind the server to a port
 if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-   close(sockfd);
-   perror("server: bind");
-   continue;
+ close(sockfd);
+ perror("server: bind");
+ continue;
 }
 
 break;
@@ -246,17 +255,14 @@ if (p == NULL)  {
 
         //cout<<"Sending virtual id: "<<virtual_id<<"\n";
         char *id = convertToString(virtual_id);
-        int size;
         if(virtual_id < 10){
             id[1] = '\0';
-            size = 2;
         } else{
             id[2] = '\0';
-            size = 3;
         }
 
         // assign virtual id to client
-        if (send(sockfd_array[virtual_id], id, size, 0) == -1){
+        if (send(sockfd_array[virtual_id], id, VIRTUAL_MAXDATASIZE, 0) == -1){
             perror("send");
         }
 
@@ -334,7 +340,7 @@ void *update_client(void *ptr){
         }
     }
 
-    char buf[MAXDATASIZE];
+    char buf[NEIGHBOUR_MAXDATASIZE];
     memcpy(buf, &info, sizeof(neighbour_update));
 
     if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
