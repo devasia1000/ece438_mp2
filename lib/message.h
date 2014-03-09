@@ -11,8 +11,6 @@
 #include <regex.h> 
 
 
-
-
 class message {
 private:
     int from_node;

@@ -1,5 +1,5 @@
 #include "graph.h"
-#include "message.h"
+#include "lib/message.h"
 
 #include <iostream>
 #include <stdio.h>
@@ -136,10 +136,9 @@ int main(int argc, char **argv){
         num_of_msgs = i;
     }
     // END Read message file
-    for (int i = 0; i < num_of_msgs; ++i)
-    {
-        std::cout << msgs[i].to_string();
-    }
+    // for (int i = 0; i < num_of_msgs; ++i){
+    //     std::cout << msgs[i].to_string();
+    // }
 
     // int num5, num6;
     // char mess[80];
