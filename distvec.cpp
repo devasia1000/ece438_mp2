@@ -17,6 +17,7 @@
 #include <pthread.h>
 
 #include "lib/structs.h"
+#include "lib/node.h"
 
 #define BACKLOG 20   // how many pending connections queue will hold
 #define MAXDATASIZE 2000
@@ -31,6 +32,7 @@ int virtual_id = -1;
 char manager_ip[80]; // ip address of the manager
 vector<char*> ip_addresses; // hold ip addresses of neighbours
 vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
+node n;
 
 // START OF FUNCTION DEFINITIONS
 void* contactManager(void *ptr);
@@ -42,6 +44,7 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]);
 void clean();
 char* convertToString(int number);
 void sigchld_handler(int s);
+
 
 int main(int argc, char **argv){
 	if(argc != 2){
@@ -62,34 +65,7 @@ int main(int argc, char **argv){
 }
 
 
-void *convergence_checker(void *ptr){
-	while(1){
-		sleep(5);
-		long cur_time = time(0);
-		if(cur_time - timestamp > 5 && timestamp != 0){
-      //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
-			graph g(virtual_id);
-			for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-				for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-					if(top[i][j] > 0 && top[i][j] != INT_MAX && top[i][j] != 6000){
-						g.addLink(i, j, top[i][j]);
-					}
-				}
-			}
-			vector<PathInfo> info_list = g.getPathInformation();
-			for(unsigned int i=0 ; i<info_list.size() ; i++){
-				PathInfo path = info_list[i];
-				cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
-				for(unsigned int j=0 ; j<path.path.size() ; j++){
-					cout<<path.path[j]<<" ";
-				}
-				cout<<path.destination<<"\n";
-			}
-			timestamp = 0;
-		}
-	}
-	exit(0);
-}
+
 
 // contacts the manager and gets virtual id
 void *contactManager(void *ptr) {
@@ -140,7 +116,7 @@ void *contactManager(void *ptr) {
 			update_timestamp();
   			/* read is sucsessful */
 			if(virtual_id == -1) {
-        		//cout<<__func__<<" : going to assign virtual id\n";
+        		// cout<<__func__<<" : going to assign virtual id\n";
 				if(buf[1] == '\0') {
 					virtual_id = buf[0];
 				}
@@ -149,6 +125,8 @@ void *contactManager(void *ptr) {
 				}
     			virtual_id = virtual_id - 48; // account for conversion from ASCII to int
     			//cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
+    			n = node(virtual_id,0,DVECTOR);
+    			// std::cout  << n.to_string();
     			pthread_t link_state_listener;
     			pthread_create(&link_state_listener, NULL, startServer, NULL);
     			//cout<<__func__<<" : started link state listener thread\n";
@@ -165,7 +143,7 @@ void *contactManager(void *ptr) {
 						//add_sockfd(i);
 					}
 				}
-				handle_routing_table_update(info.top);
+				// handle_routing_table_update(info.top);
     			//cout<<__func__<<" : recieved neighbour information from manager:\n";
     			// ENCODE INFORMATION INTO STRUCT
 				char mess[MAXDATASIZE];
@@ -198,8 +176,39 @@ void *contactManager(void *ptr) {
 	}
 }//END contactManager
 
+void *convergence_checker(void *ptr){
+	while(1){
+		sleep(5);
+		long cur_time = time(0);
+		if(cur_time - timestamp > 5 && timestamp != 0){
+      //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
+			graph g(virtual_id);
+			for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+				for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+					if(top[i][j] > 0 && top[i][j] != INT_MAX && top[i][j] != 6000){
+						g.addLink(i, j, top[i][j]);
+					}
+				}
+			}
+			vector<PathInfo> info_list = g.getPathInformation();
+			for(unsigned int i=0 ; i<info_list.size() ; i++){
+				PathInfo path = info_list[i];
+				cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
+				for(unsigned int j=0 ; j<path.path.size() ; j++){
+					cout<<path.path[j]<<" ";
+				}
+				cout<<path.destination<<"\n";
+			}
+			timestamp = 0;
+		}
+	}
+	exit(0);
+}// END convergence_checker
+
 // listens for incoming connections from neighbours
 void *startServer(void *ptr) {
+	class node n(virtual_id,0,DVECTOR);
+	
 	int sockfd;
     struct addrinfo hints, *servinfo, *p;
     int rv;

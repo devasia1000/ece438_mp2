@@ -146,7 +146,7 @@ int main(int argc, char **argv){
         msgs[i] = message;
         i++;
         num_of_msgs = i;
-        cout<<num_of_msgs<<"\n";
+        // cout<<num_of_msgs<<"\n";
 
         // wrap message information in a structure
         message_update mess_update;

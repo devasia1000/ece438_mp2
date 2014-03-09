@@ -1,6 +1,6 @@
 #ifndef CUSTOM_STRUCTS
 #define CUSTOM_STRUCTS
-
+// Import this for struts that will be shared 
 typedef struct data{
     int sender_id;
     int ttl;
