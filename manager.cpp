@@ -19,7 +19,13 @@
 #include <fstream>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 2000
+
+// constants used to specify type of packet recieved
+#define MAXDATASIZE 3000
+#define VIRTUAL_MAXDATASIZE 10 // packet is from manager and contains virtual id information
+#define NEIGHBOUR_MAXDATASIZE 2000 // packet is from manager or neighbour and contains information about neighbours ip addresses
+#define MESSAGE_MAXDATASIZE 1000 // packet is from manager or neighbours and contains message information
+
 #define PORT "6000"
 
 /*************** START TASKS TO FINISH  *************
@@ -57,22 +63,30 @@ char* convertToString(int number){
 }
 
 // GLOBAL VARIBALES 
-struct update{
+struct neighbour_update{
     char neighbours[MAX_NODE_COUNT][20];
     int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+};
+
+struct message_update{ // this struct will be serialized and sent over a socket to the client
+    int source;
+    int dest;
+    int hops[MAX_NODE_COUNT];
+    int hops_pos;
+    char message[200];
+    bool forward; // set 'true' if client should forward update to next neighbour, set 'false' if otherwise 
 };
 
 vector<int> sockfd_array; // holds socket file descriptors to each node
 vector<char*> ip_address_array; // holds ip addresses of nodes
 set<int> nodes; // used to store and assign virtual id's to nodes
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
-// std::vector<message> msgs; // used to hold msgs to be sent between nodes
 message msgs[MAX_NODE_COUNT];
+vector<message_update> message_list;
 // END OF GLOBAL VARIABLES
 
 // START FUNCTION DECLARATIONS
 void *update_client(void *ptr);
-update prepare_send(int virtual_id);
 void *stdin_reader(void *ptr);
 // END FUNCTION DECLARATIONS
 
@@ -85,8 +99,6 @@ int main(int argc, char **argv){
 
     sockfd_array.resize(MAX_NODE_COUNT);
     ip_address_array.resize(MAX_NODE_COUNT);
-    // msgs.resize(MAX_NODE_COUNT);
-
     // clear all data
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
 
@@ -134,28 +146,16 @@ int main(int argc, char **argv){
         msgs[i] = message;
         i++;
         num_of_msgs = i;
+        cout<<num_of_msgs<<"\n";
+
+        // wrap message information in a structure
+        message_update mess_update;
+        mess_update.source = message.get_from_node();
+        mess_update.dest = message.get_to_node();
+        strcpy(mess_update.message, message.get_msg().c_str());
+
+        message_list.push_back(mess_update);
     }
-    // END Read message file
-    // for (int i = 0; i < num_of_msgs; ++i){
-    //     std::cout << msgs[i].to_string();
-    // }
-
-    // int num5, num6;
-    // char mess[80];
-    // cout << "message[num5] = mess\n";
-    // while(fscanf(file, "%d", &num5) != EOF && fscanf(file, "%d", &num6) != EOF && fscanf(file, "%s", mess) != EOF){
-    //     cout << "message[" << num5 << "] = " << mess << "\n";
-    //     message[num5] = mess;
-    // }
-
-    //  GENERAL ALG:
-    // START ACCEPTING CONNECTIONS FROM NODES
-    // AFTER ACCEPTING CONNECTION, ASSIGN EACH NODE A VIRTUAL ID
-    // SEND MESSAGE DATA TO NODES
-    // SEND NEIGHBOUR DATA AND COST TO EACH NODE
-    // WAIT FOR CONVERGENCE
-    // ACCEPT INPUT FROM STDIN
-    // REPEAT
 
     /****************************** START ACCEPTING CONNECTIONS FROM NODES **************************/
 
@@ -192,11 +192,12 @@ int main(int argc, char **argv){
     exit(1);
 }
 
-// if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-//     close(sockfd);
-//     perror("server: bind");
-//     continue;
-// }
+// Sorry didn't realise that there is a std::bind and a ::bind in C++11 
+if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+ close(sockfd);
+ perror("server: bind");
+ continue;
+}
 
 break;
 }
@@ -254,17 +255,14 @@ if (p == NULL)  {
 
         //cout<<"Sending virtual id: "<<virtual_id<<"\n";
         char *id = convertToString(virtual_id);
-        int size;
         if(virtual_id < 10){
             id[1] = '\0';
-            size = 2;
         } else{
             id[2] = '\0';
-            size = 3;
         }
 
         // assign virtual id to client
-        if (send(sockfd_array[virtual_id], id, size, 0) == -1){
+        if (send(sockfd_array[virtual_id], id, VIRTUAL_MAXDATASIZE, 0) == -1){
             perror("send");
         }
 
@@ -319,7 +317,7 @@ void *update_client(void *ptr){
 
     //cout<<"updating virtual id "<<virtual_id<<"\n";
 
-    update info;
+    neighbour_update info;
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         info.neighbours[i][0] = '\0';
@@ -342,8 +340,8 @@ void *update_client(void *ptr){
         }
     }
 
-    char buf[MAXDATASIZE];
-    memcpy(buf, &info, sizeof(update));
+    char buf[NEIGHBOUR_MAXDATASIZE];
+    memcpy(buf, &info, sizeof(neighbour_update));
 
     if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
         perror("send");

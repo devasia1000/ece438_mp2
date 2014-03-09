@@ -5,3 +5,20 @@
 ------------------------------------------------
 |   Spencer Carlson  |   658976679  | sdcarls2 |
 ------------------------------------------------
+
+Instructions:
+
+    To start the manager, first run 'make' and then run './manager <top_file> <message_file>' at the terminal
+
+    To start a link state node, first run 'make' and then run './linkstate <ip_address_of_manager>'
+
+    To start a distance vector node, first run 'make' and then run './distvec <ip_address_of_manager>'
+
+Team Contributions:
+
+    Devasia Manuel was responsbile for implementing most aspects of the manager as well the link state protocol
+
+    Spencer Carlson was responsible for implementing the messaging structure of the manager as well as the distance vector
+    protocol
+
+

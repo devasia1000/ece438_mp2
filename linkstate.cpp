@@ -17,9 +17,14 @@
 #include <pthread.h>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 2000
-#define PORT "6000"
 
+// constants used to specify type of packet recieved
+#define MAXDATASIZE 3000
+#define VIRTUAL_MAXDATASIZE 10 // packet is from manager and contains virtual id information
+#define NEIGHBOUR_MAXDATASIZE 2000 // packet is from manager or neighbour and contains information about neighbours ip addresses
+#define MESSAGE_MAXDATASIZE 1000 // packet is from manager or neighbours and contains message information
+
+#define PORT "6000"
 
 
 /*************** START TASKS TO FINISH *************
@@ -48,11 +53,22 @@ struct update{
   char neighbours[MAX_NODE_COUNT][20];
   int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
 };
+
+struct message_update{ // this struct will be serialized and recieved over a socket from manager
+  int source;
+  int dest;
+  int hops[MAX_NODE_COUNT];
+  int hops_pos; 
+  char message[200];
+    bool forward; // set 'true' if client should forward update to next neighbour, set 'false' if otherwise 
+  };
+
+vector<PathInfo> path_info_list; // holds routing table info after convergence
 // END OF GLOBAL VARIABLES
 
 
 // START OF FUNCTION DEFINITIONS
-void *contactManager(void *ptr);
+  void *contactManager(void *ptr);
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]); // handles all updates to routing tables
 void update_timestamp(); // update the convergence timestamp
 void *startServer(void *ptr); // listens to incoming connections from neighbours
@@ -60,6 +76,7 @@ void *handle_client(void *ptr); // handle a single client connection
 void add_sockfd(int virtual_id); // opens a socket to nighbour using and stores sockfd in 'sock_fd' vector
 void *convergence_checker(void *ptr); // checks for convergence
 void dijkstra(int graph[MAX_NODE_COUNT][MAX_NODE_COUNT], int src);
+void message_sender(message_update data); // sends messages upon convergence
 // END OF FUNCTION DEFINITIONS
 
 
@@ -142,10 +159,10 @@ void *convergence_checker(void *ptr){
         }
       }
 
-      vector<PathInfo> info_list = g.getPathInformation();
+      path_info_list = g.getPathInformation();
 
-      for(unsigned int i=0 ; i<info_list.size() ; i++){
-        PathInfo path = info_list[i];
+      for(unsigned int i=0 ; i<path_info_list.size() ; i++){
+        PathInfo path = path_info_list[i];
         cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
 
         for(unsigned int j=0 ; j<path.path.size() ; j++){
@@ -160,6 +177,10 @@ void *convergence_checker(void *ptr){
   }
 
   exit(0);
+}
+
+void message_sender(message_update data){
+
 }
 
 void update_timestamp(){
@@ -245,14 +266,13 @@ void *contactManager(void *ptr) {
     //cout<<__func__<<" : started link state listener thread\n";
   }
 
-  else {
+  else if (numbytes == NEIGHBOUR_MAXDATASIZE){ // this is a topology update from neighbour or manager
 
     update info;
     memcpy(&info, buf, sizeof(update));
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
-        //cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
         ip_addresses[i] = new char[20];
         strcpy(ip_addresses[i], info.neighbours[i]);
         add_sockfd(i);
@@ -264,7 +284,7 @@ void *contactManager(void *ptr) {
     //cout<<__func__<<" : recieved neighbour information from manager:\n";
 
     // ENCODE INFORMATION INTO STRUCT
-    char mess[MAXDATASIZE];
+    char mess[NEIGHBOUR_MAXDATASIZE];
     data message;
     message.sender_id = virtual_id;
     message.ttl = 20;
@@ -279,21 +299,52 @@ void *contactManager(void *ptr) {
     memcpy(mess, &message, sizeof(data));
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(top[virtual_id][i] > 0){
-        if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-          //perror("send");
+        if (send(sock_fd[i], mess, sizeof(mess), 0) == -1){
+        //perror("send");
         }
       }
     }
 
-    //cout<<__func__<<" : sent routing information to neighbour\n";
+  //cout<<__func__<<" : sent routing information to neighbour\n";
     update_timestamp();
   }
 }
 
+else if(numbytes == MESSAGE_MAXDATASIZE){ // this is a message update from manager or neighbours
+
+  cout<<"recieved message updat\n";
+
+  message_update update;
+  memcpy(&update, buf, sizeof(message_update));
+
+  if(update.forward == true){
+
+    update.hops[update.hops_pos] = virtual_id;
+    update.hops_pos++;
+
+    // print out update information
+    cout<<"from "<<update.source<<" to "<<update.dest<<" hops ";
+    for(int i=0 ; i<update.hops_pos ; i++){
+      cout<<update.hops[i]<<" ";
+    } 
+    cout<<"message "<<update.message<<"\n";
+
+    // TODO: find next neighbour according to routing tables
+
+    // TODO: send to next neighbour
+  }
+
+  else{
+    // TODO: save message to local datastructure
+
+  }
+
+}
+
 else if (numbytes == 0) {
-      /* socket has been closed */
+    /* socket has been closed */
   close(sockfd);
-  //printf("closing socket\n");
+//printf("closing socket\n");
 }
 }
 }
@@ -487,7 +538,7 @@ void *handle_client(void *ptr){
       //cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
 
         // ENCODE STRUCT INTO CHAR ARRAY AND SENd
-      char buf2[MAXDATASIZE];
+      char buf2[NEIGHBOUR_MAXDATASIZE];
       //cout<<"bytes read"<<numbytes<<"\n";
       memcpy(buf2, &info, sizeof(data));
 
@@ -498,7 +549,7 @@ void *handle_client(void *ptr){
           if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
 
           //cout<<"\tresending to "<<i<<"\n";
-          if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
+          if (send(sock_fd[i], buf2, sizeof(buf2), 0) == -1){
             //perror("send");
           }
 
