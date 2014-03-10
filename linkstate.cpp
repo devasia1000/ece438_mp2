@@ -17,7 +17,7 @@
 #include <pthread.h>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 2000
+#define MAXDATASIZE 3000
 #define PORT "6000"
 
 // START OF GLOBAL VARIABLES
@@ -29,15 +29,25 @@ vector<char*> ip_addresses; // hold ip addresses of neighbours
 vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
 
 struct data{ // used to send neighbour data
+  bool neighbour_update;
   int sender_id;
   int ttl;
   int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
 
+
+  bool message_update;
+  int hops[MAX_NODE_COUNT];
+  int hops_pos;
+  char message[200];
 };
 
 struct update{
-  char neighbours[MAX_NODE_COUNT][20];
-  int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+    bool neighbour_update; // set this to true if this is a neighbour update
+    char neighbours[MAX_NODE_COUNT][20];
+    int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+
+    bool message_update; // set this to true if this is a message update
+    vector<char[200]> message_list;
 };
 // END OF GLOBAL VARIABLES
 
@@ -531,34 +541,4 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
       top[i][j] = x[i][j];
     }
   }
-
-  /*
-
-  if(timestamp <= time(0)){
-
-    for(int i=1 ; i<17 ; i++){
-
-      if(x[virtual_id][i] != top[virtual_id][i] && x[virtual_id][i] != 0){
-
-        // we use the value INT_MAX to show links have been broken
-        if(x[virtual_id][i] == INT_MAX){
-          cout<<"no longer linked to node "<<i<<"\n";
-        } 
-
-        else {
-          cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
-        }
-      }
-    }
-
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-      for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-        if(x[i][j] > 0){
-          top[i][j] = x[i][j];
-        }
-      }
-    }
-
-    update_timestamp();
-  }*/
-  }
+}

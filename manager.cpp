@@ -1,31 +1,33 @@
-#include "graph.h"
+    #include "graph.h"
+    #include "message.h"
 
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <set>
-#include <sstream>
+    #include <iostream>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <unistd.h>
+    #include <errno.h>
+    #include <string.h>
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netdb.h>
+    #include <arpa/inet.h>
+    #include <sys/wait.h>
+    #include <signal.h>
+    #include <set>
+    #include <sstream>
+    #include <fstream>
 
-#define BACKLOG 20   // how many pending connections queue will hold
-#define MAXDATASIZE 2000
-#define PORT "6000"
+    #define BACKLOG 20   // how many pending connections queue will hold
+    #define MAXDATASIZE 3000
+    #define PORT "6000"
 
 void sigchld_handler(int s){
 
     while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-// get sockaddr, IPv4 or IPv6:
+    // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa){
 
     if (sa->sa_family == AF_INET) {
@@ -37,87 +39,94 @@ void *get_in_addr(struct sockaddr *sa){
 
 char* convertToString(int number){
 
-   stringstream ss; //create a stringstream
-   ss << number; //add number to the stream
-   string result = ss.str();
+    stringstream ss; //create a stringstream
+    ss << number; //add number to the stream
+    string result = ss.str();
 
-   char *a=new char[result.size()+1];
-   a[result.size()]=0;
-   memcpy(a, result.c_str(), result.size());
+    char *a=new char[result.size()+1];
+    a[result.size()]=0;
+    memcpy(a, result.c_str(), result.size());
 
-   return a;
+    return a;
 }
 
-// GLOBAL VARIBALES 
+    // GLOBAL VARIBALES 
 struct update{
+    bool neighbour_update; // set this to true if this is a neighbour update
     char neighbours[MAX_NODE_COUNT][20];
     int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+
+    bool message_update; // set this to true if this is a message update
+    int source;
+    int dest;
+    char mess[200];
 };
 
-vector<int> sockfd_array; // holds socket file descriptors to each node
-vector<char*> ip_address_array; // holds ip addresses of nodes
-set<int> nodes; // used to store and assign virtual id's to nodes
-int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
-vector<char*> message; // used to hold messages to be sent between nodes
-vector<bool> connected_nodes; // keep track of nodes that are already connected
-// END OF GLOBAL VARIABLES
+    vector<int> sockfd_array; // holds socket file descriptors to each node
+    vector<char*> ip_address_array; // holds ip addresses of nodes
+    set<int> nodes; // used to store and assign virtual id's to nodes
+    int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
+    vector<message> message_list; // used to hold messages to be sent between nodes
+    vector<bool> connected_nodes; // keep track of nodes that are already connected
+    // END OF GLOBAL VARIABLES
 
-// START FUNCTION DECLARATIONS
-void *update_client(void *ptr);
-update prepare_send(int virtual_id);
-void *stdin_reader(void *ptr);
-// END FUNCTION DECLARATIONS
+    // START FUNCTION DECLARATIONS
+    void *update_client(void *ptr);
+    update prepare_send(int virtual_id);
+    void *stdin_reader(void *ptr);
+    // END FUNCTION DECLARATIONS
 
-int main(int argc, char **argv){
+    int main(int argc, char **argv){
 
-    if(argc != 3){
-        cerr<<"Usage: ./manager <topology_file> <message_file>\n";
-        return 1;
-    }
+        if(argc != 3){
+            cerr<<"Usage: ./manager <topology_file> <message_file>\n";
+            return 1;
+        }
 
-    sockfd_array.resize(MAX_NODE_COUNT);
-    ip_address_array.resize(MAX_NODE_COUNT);
-    message.resize(MAX_NODE_COUNT);
-    connected_nodes.resize(MAX_NODE_COUNT);
+        sockfd_array.resize(MAX_NODE_COUNT);
+        ip_address_array.resize(MAX_NODE_COUNT);
+        message_list.resize(MAX_NODE_COUNT);
+        connected_nodes.resize(MAX_NODE_COUNT);
 
     // clear all data
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        for(int i=0 ; i<MAX_NODE_COUNT ; i++){
 
-        ip_address_array[i] = NULL;
-        sockfd_array[i] = 0;
-        connected_nodes[i] = 0;
+            ip_address_array[i] = NULL;
+            sockfd_array[i] = 0;
+            connected_nodes[i] = 0;
 
-        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-            top[i][j] = 0;
+            for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+                top[i][j] = 0;
+            }
         }
-    }
 
-    FILE *file = fopen(argv[1], "r");
-    if(file == NULL){
-        cerr<<strerror(errno)<<"\n";
-        exit(0);
-    }
+        FILE *file = fopen(argv[1], "r");
+        if(file == NULL){
+            cerr<<strerror(errno)<<"\n";
+            exit(0);
+        }
 
-    int num1, num2, num3;
-    while(fscanf(file, "%d", &num1) != EOF && fscanf(file, "%d", &num2) != EOF && fscanf(file, "%d", &num3) != EOF){
-        top[num1][num2] = num3;
-        top[num2][num1] = num3;
-        nodes.insert(num1);
-        nodes.insert(num2);
-    }
+        int num1, num2, num3;
+        while(fscanf(file, "%d", &num1) != EOF && fscanf(file, "%d", &num2) != EOF && fscanf(file, "%d", &num3) != EOF){
+            top[num1][num2] = num3;
+            top[num2][num1] = num3;
+            nodes.insert(num1);
+            nodes.insert(num2);
+        }
 
-    fclose(file);
+        fclose(file);
+        
+        // START Read message file
+        ifstream input(argv[2]);
+        if(input.fail()){
+          cerr<<strerror(errno)<<"\n";
+          exit(0);
+      }
 
-    file = fopen(argv[2], "r");
-    if(file == NULL){
-        cerr<<strerror(errno)<<"\n";
-        exit(0);
-    }
-
-    int num5, num6;
-    char mess[80];
-    while(fscanf(file, "%d", &num5) != EOF && fscanf(file, "%d", &num6) != EOF && fscanf(file, "%s", mess) != EOF){
-        message[num5] = mess;
+      string line;
+      while( std::getline( input, line ) ) {
+        class message mess(line);
+        message_list.push_back(mess);
     }
 
     /****************************** START ACCEPTING CONNECTIONS FROM NODES **************************/
@@ -232,10 +241,39 @@ if (p == NULL)  {
             perror("send");
         }
 
+        // TODO: send message information to client
+
+        for(unsigned int i=0 ; i<message_list.size() ; i++){
+            message mess = message_list[i];
+
+            if(mess.get_from_node() == virtual_id){
+                update info;
+                info.neighbour_update = false;
+                info.message_update = true;
+
+                info.source = mess.get_from_node();
+                info.dest = mess.get_to_node();
+
+                strcpy(info.mess, mess.get_msg().c_str());
+
+                char buf[MAXDATASIZE];
+                memcpy(buf, &info, sizeof(update));
+
+                cout<<"message to "<<virtual_id<<"\n";
+                cout<<"\tsource: "<<info.source<<"\n";
+                cout<<"\tdest: "<<info.dest<<"\n";
+                cout<<"\tmessage: "<<info.mess<<"\n";
+
+                //if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
+                //    perror("send");
+                //}
+            }
+        }
+
         // send topology and neighbour information to all clients
-        for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-            if(sockfd_array[i] != 0){
-                int *temp = new int;
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        if(sockfd_array[i] != 0){
+            int *temp = new int;
                 *temp = i; // IMPORTANT: used to store i and protect against change while for loop is running
 
                 pthread_t update_thread;
@@ -247,7 +285,7 @@ if (p == NULL)  {
     return 0;
 }
 
-// read from stdin and update appropiate client
+    // read from stdin and update appropiate client
 void *stdin_reader(void *ptr){
     sleep(2);
 
@@ -281,9 +319,10 @@ void *update_client(void *ptr){
     int *temp = (int*) ptr;
     int virtual_id = *temp;
 
-    //cout<<"updating virtual id "<<virtual_id<<"\n";
-
+    // send neighbour update
     update info;
+    info.neighbour_update = true;
+    info.message_update = false;
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         info.neighbours[i][0] = '\0';

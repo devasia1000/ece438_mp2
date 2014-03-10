@@ -1,6 +1,7 @@
 #ifndef NODE_MESSAGE
 #define NODE_MESSAGE
 
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
