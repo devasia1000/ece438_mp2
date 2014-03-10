@@ -17,19 +17,8 @@
 #include <pthread.h>
 
 #define BACKLOG 20   // how many pending connections queue will hold
-
-// constants used to specify type of packet recieved
-#define MAXDATASIZE 3000
-#define VIRTUAL_MAXDATASIZE 10 // packet is from manager and contains virtual id information
-
+#define MAXDATASIZE 2000
 #define PORT "6000"
-
-
-/*************** START TASKS TO FINISH *************
-
-1) IMPLEMENT MESSAGE SENDING BETWEEN CLIENTS AFTER CONVERGENCE
-
-************ END TASKS TO FINISH ***********/
 
 // START OF GLOBAL VARIABLES
 long timestamp = -1;
@@ -39,29 +28,20 @@ char manager_ip[80]; // ip address of the manager
 vector<char*> ip_addresses; // hold ip addresses of neighbours
 vector<int> sock_fd; // hold a sock fd corresponding to each neighbour
 
-struct update{ // this struct will be serialized and sent over a socket to the client
-
-  bool neighbour_update; // set this to true if update is for neighbours
-  int ttl;
+struct data{ // used to send neighbour data
   int sender_id;
-  char neighbours[MAX_NODE_COUNT][20];
+  int ttl;
   int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
-
-  bool message_update; // set this to true if update if for message
-  int source;
-  int dest;
-  int hops[MAX_NODE_COUNT];
-  int hops_pos;
-  char message[200];
 };
 
-vector<PathInfo> path_info_list; // holds routing table info after convergence
-vector<update> message_list;
+struct update{
+    char neighbours[MAX_NODE_COUNT][20];
+    int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+};
 // END OF GLOBAL VARIABLES
 
 
 // START OF FUNCTION DEFINITIONS
-int get_next_hop(int dest); // finds the next hop for a message
 void *contactManager(void *ptr);
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]); // handles all updates to routing tables
 void update_timestamp(); // update the convergence timestamp
@@ -70,7 +50,6 @@ void *handle_client(void *ptr); // handle a single client connection
 void add_sockfd(int virtual_id); // opens a socket to nighbour using and stores sockfd in 'sock_fd' vector
 void *convergence_checker(void *ptr); // checks for convergence
 void dijkstra(int graph[MAX_NODE_COUNT][MAX_NODE_COUNT], int src);
-void message_sender(update data); // sends messages upon convergence
 // END OF FUNCTION DEFINITIONS
 
 
@@ -126,24 +105,23 @@ int main(int argc, char **argv) {
     }
   }
 
-//cout<<__func__<<" : started manager thread\n";
+  //cout<<__func__<<" : started manager thread\n";
   pthread_t manager_thread;
   pthread_create( &manager_thread, NULL, contactManager, NULL);
 
-//cout<<__func__<<" : started convergence checker thread\n";
+  //cout<<__func__<<" : started convergence checker thread\n";
   pthread_t convergence;
   pthread_create(&convergence, NULL, convergence_checker, NULL);
   pthread_join(convergence, NULL);
 }
 
 void *convergence_checker(void *ptr){
-
   while(1){
     sleep(5);
 
     long cur_time = time(0);
     if(cur_time - timestamp > 5 && timestamp != 0){
-    cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
+      //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
 
       graph g(virtual_id);
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
@@ -154,10 +132,10 @@ void *convergence_checker(void *ptr){
         }
       }
 
-      path_info_list = g.getPathInformation();
+      vector<PathInfo> info_list = g.getPathInformation();
 
-      for(unsigned int i=0 ; i<path_info_list.size() ; i++){
-        PathInfo path = path_info_list[i];
+      for(unsigned int i=0 ; i<info_list.size() ; i++){
+        PathInfo path = info_list[i];
         cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
 
         for(unsigned int j=0 ; j<path.path.size() ; j++){
@@ -168,47 +146,10 @@ void *convergence_checker(void *ptr){
 
       timestamp = 0;
 
-    // CHECK: start sending messages to clients
-      cout<<__func__<<"going to send messages to clients\n";
-
-      while(message_list.size() > 0){      
-
-        update update = message_list.back();
-        message_list.pop_back();
-
-        update.message_update = true;
-
-        update.hops[update.hops_pos] = virtual_id;
-        update.hops_pos++;
-
-      // print out update information
-        cout<<"from "<<update.source<<" to "<<update.dest<<" hops ";
-        for(int i=0 ; i<update.hops_pos ; i++){
-          cout<<update.hops[i]<<" ";
-        } 
-        cout<<"message "<<update.message<<"\n";
-
-      // CHECK: find next neighbour according to routing tables
-        int next_hop = get_next_hop(update.dest);
-
-        if(next_hop != virtual_id){
-
-          char buf2[MAXDATASIZE];
-          memcpy(&update, buf2, sizeof(update));
-
-          cout<<__func__<<" sending message to "<<next_hop<<"\n";
-
-        // CHECK: send to next neighbour
-          if (send(sock_fd[next_hop], buf2, sizeof(MAXDATASIZE), 0) == -1){
-            perror("send");
-          }
-        }
-      }
     }
   }
 
-  return NULL;
-
+  exit(0);
 }
 
 void update_timestamp(){
@@ -232,7 +173,7 @@ void *contactManager(void *ptr) {
   hints.ai_socktype = SOCK_STREAM;
 
   if ((rv = getaddrinfo(manager_ip, port.c_str(), &hints, &servinfo)) != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     exit(0);
   }
 
@@ -252,40 +193,31 @@ void *contactManager(void *ptr) {
   }
 
   if (p == NULL) {
-    fprintf(stderr, "client: failed to connect\n");
+    //fprintf(stderr, "client: failed to connect\n");
     exit(0);
   }
 
   inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-//printf("client: connecting to %s\n", s);
+  //printf("client: connecting to %s\n", s);
   freeaddrinfo(servinfo);
 
   while(1) {
 
-    cout<<__func__<<": in accept loop\n";
-
 /* read data from server */
     numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
-
     if (numbytes == -1) {
-      /* error has occured with read */
+  /* error has occured with read */
       perror("recv");
-      //exit(0);
+      exit(0);
     }
 
-    else if(numbytes == 0){
-      close(sockfd);
-      perror("recv");
-      //exit(0);
-    }
-
-    else if (numbytes == VIRTUAL_MAXDATASIZE) {
+    else if (numbytes > 0) {
 
       update_timestamp();
 
-/* read is sucsessful */
+  /* read is sucsessful */
       if(virtual_id == -1) {
-        cout<<__func__<<" : going to assign virtual id\n";
+        //cout<<__func__<<" : going to assign virtual id\n";
         if(buf[1] == '\0') {
           virtual_id = buf[0];
         }
@@ -294,84 +226,65 @@ void *contactManager(void *ptr) {
           virtual_id = 10*buf[0] + buf[1];
         }
 
-  virtual_id = virtual_id - 48; // account for conversion from ASCII to int
-  cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
+    virtual_id = virtual_id - 48; // account for conversion from ASCII to int
+    //cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
 
 
-  pthread_t link_state_listener;
-  pthread_create(&link_state_listener, NULL, startServer, NULL);
-  cout<<__func__<<" : started link state listener thread\n";
-}
-
-}
-
-else{
-
-  update data;
-  memcpy(&data, buf, sizeof(update));
-
-if(data.neighbour_update == true){  // do neighbour stuff
- cout<<__func__<<"recived topology update from manager\n";
-
- update info;
- memcpy(&info, buf, sizeof(update));
-
- for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-  if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
-    ip_addresses[i] = new char[20];
-    strcpy(ip_addresses[i], info.neighbours[i]);
-    add_sockfd(i);
+    pthread_t link_state_listener;
+    pthread_create(&link_state_listener, NULL, startServer, NULL);
+    //cout<<__func__<<" : started link state listener thread\n";
   }
-}
 
-handle_routing_table_update(info.top);
+  else {
 
-  cout<<__func__<<" : recieved neighbour information from manager:\n";
+    update info;
+    memcpy(&info, buf, sizeof(update));
 
-  // ENCODE INFORMATION INTO STRUCT
-char mess[MAXDATASIZE];
-update message;
-message.neighbour_update = true;
-message.sender_id = virtual_id;
-message.ttl = 20;
-for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-  for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-    message.top[i][j] = top[i][j];
-  }
-}
-
-sleep(2);
-
-memcpy(mess, &message, sizeof(update));
-for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-  if(top[virtual_id][i] > 0){
-    if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-      perror("send");
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
+        //cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
+        ip_addresses[i] = new char[20];
+        strcpy(ip_addresses[i], info.neighbours[i]);
+        add_sockfd(i);
+      }
     }
+
+    handle_routing_table_update(info.top);
+
+    //cout<<__func__<<" : recieved neighbour information from manager:\n";
+
+    // ENCODE INFORMATION INTO STRUCT
+    char mess[MAXDATASIZE];
+    data message;
+    message.sender_id = virtual_id;
+    message.ttl = 20;
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+        message.top[i][j] = top[i][j];
+      }
+    }
+
+    sleep(2);
+
+    memcpy(mess, &message, sizeof(data));
+    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+      if(top[virtual_id][i] > 0){
+        if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
+          //perror("send");
+        }
+      }
+    }
+
+    //cout<<__func__<<" : sent routing information to neighbour\n";
+    update_timestamp();
   }
 }
 
-cout<<__func__<<" : sent routing information to neighbour\n";
-update_timestamp();
+else if (numbytes == 0) {
+      /* socket has been closed */
+  close(sockfd);
+  //printf("closing socket\n");
 }
-
-
-else if(data.message_update == true){ // do message stuff
-
-// CHECK: store message in local datastructure
-  cout<<__func__<<" recieved message update from manager\n";
-
-  update update;
-
-  memcpy(&update, buf, sizeof(update));
-
-  cout<<"recived from manager message from "<<update.source<<" to "<<update.dest<<" with "<<update.message<<"\n";
-
-  message_list.push_back(update);
-}
-
-}
-
 }
 }
 
@@ -394,8 +307,8 @@ void add_sockfd(int v_id){
   hints.ai_socktype = SOCK_STREAM;
 
   if ((rv = getaddrinfo(ip_addresses[v_id], po.c_str(), &hints, &servinfo)) != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-    //exit(1);
+    //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    exit(1);
   }
 
 // loop through all the results and connect to the first we can
@@ -416,8 +329,8 @@ void add_sockfd(int v_id){
 }
 
 if (p == NULL) {
-  fprintf(stderr, "client: failed to connect\n");
-  //exit(1);
+  //fprintf(stderr, "client: failed to connect\n");
+  exit(1);
 }
 
 inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
@@ -428,7 +341,7 @@ freeaddrinfo(servinfo); // all done with this structure
 
 sock_fd[v_id] = sockfd;
 
-cout<<"stored socket fd for "<<v_id<<"\n";
+//cout<<"stored socket fd for "<<v_id<<"\n";
 
 }
 
@@ -461,8 +374,8 @@ hints.ai_flags = AI_PASSIVE; // use my IP
 int port = atoi(PORT) + virtual_id;
 
 if ((rv = getaddrinfo(NULL, convertToString(port), &hints, &servinfo)) != 0) {
-  fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-  //exit(1);
+  //fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+  exit(1);
 }
 
 // loop through all the results and bind to the first we can
@@ -476,10 +389,10 @@ for(p = servinfo; p != NULL; p = p->ai_next) {
 if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
   sizeof(int)) == -1) {
   perror("setsockopt");
-  //exit(1);
+exit(1);
 }
 
-if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
   close(sockfd);
   perror("server: bind");
   continue;
@@ -489,15 +402,15 @@ break;
 }
 
 if (p == NULL)  {
-  fprintf(stderr, "server: failed to bind\n");
-  //exit(1);
+  //fprintf(stderr, "server: failed to bind\n");
+  exit(1);
 }
 
 freeaddrinfo(servinfo); // all done with this structure
 
 if (listen(sockfd, BACKLOG) == -1) {
   perror("listen");
-  //exit(1);
+  exit(1);
 }
 
 sa.sa_handler = sigchld_handler; // reap all dead processes
@@ -505,10 +418,10 @@ sigemptyset(&sa.sa_mask);
 sa.sa_flags = SA_RESTART;
 if (sigaction(SIGCHLD, &sa, NULL) == -1) {
   perror("sigaction");
-  //exit(1);
+  exit(1);
 }
 
-cout<<"Neighbour server: waiting for connections on port "<<convertToString(port)<<"\n";
+//cout<<"Neighbour server: waiting for connections on port "<<convertToString(port)<<"\n";
 
 while(1) {  // main accept() loop
 
@@ -520,14 +433,12 @@ while(1) {  // main accept() loop
   }
 
   inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-  printf("Neighbour server: got connection from %s\n", s);
+  //printf("Neighbour server: got connection from %s\n", s);
 
-// create new thread to handle client
+  // create new thread to handle client
   pthread_t client_manager;
   pthread_create( &client_manager, NULL, handle_client, &new_fd);
 }
-
-return NULL;
 }
 
 // handle a single client connection
@@ -541,49 +452,44 @@ void *handle_client(void *ptr){
 
     usleep(50);
 
-  // read data from connected client 
+// read data from connected client 
     int numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
     if (numbytes == -1) {
       perror("recv");
-      //exit(0);
+      exit(0);
     }
 
-    else if(numbytes == 0){
-      close(sockfd)
-      perror("recv");
-      //exit(0);
-    }
+    else if (numbytes > 0) {
 
+      update_timestamp();
 
-  update info;
-  memcpy(&info, buf, sizeof(update));
-
-    if (info.neighbour_update == true) {
-
+      // decode information from char array into struct
+      data info;
+      memcpy(&info, buf, sizeof(data));
 
       handle_routing_table_update(info.top);
 
-      unsigned int prev_virtual_id = info.sender_id;
+      //unsigned int prev_virtual_id = info.sender_id;
       info.sender_id = virtual_id;
       info.ttl--;
-      info.neighbour_update = true;
 
-    cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
 
-      // ENCODE STRUCT INTO CHAR ARRAY AND SENd
+      //cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
+
+        // ENCODE STRUCT INTO CHAR ARRAY AND SENd
       char buf2[MAXDATASIZE];
-    //cout<<"bytes read"<<numbytes<<"\n";
-      memcpy(buf2, &info, sizeof(update));
+      //cout<<"bytes read"<<numbytes<<"\n";
+      memcpy(buf2, &info, sizeof(data));
 
       if(info.ttl > 0){
 
-        // send to all neighbours
+          // send to all neighbours
         for(unsigned int i=0 ; i<sock_fd.size() ; i++){
-        if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
+          if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
 
-          cout<<"\tresending to "<<i<<"\n";
+          //cout<<"\tresending to "<<i<<"\n";
           if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
-          perror("send");
+            //perror("send");
           }
 
           update_timestamp();
@@ -593,48 +499,37 @@ void *handle_client(void *ptr){
     }
   }
 
-  else if(info.message_update == true){
-
-    cout<<__func__<<" recieved message update from client\n";
-
-    info.hops[info.hops_pos] = virtual_id;
-    info.hops_pos++;
-    info.message_update = true;
-
-  // print out update information
-    cout<<"from "<<info.source<<" to "<<info.dest<<" hops ";
-    for(int i=0 ; i<info.hops_pos ; i++){
-      cout<<info.hops[i]<<" ";
-    } 
-    cout<<"message "<<info.message<<"\n";
-
-  // CHECK: find next neighbour according to routing tables
-    int next_hop = get_next_hop(info.dest);
-
-    char buf2[MAXDATASIZE];
-    memcpy(&info, buf2, sizeof(update));
-
-  // CHECK: send to next neighbour
-    if (send(sock_fd[next_hop], buf2, MAXDATASIZE, 0) == -1){
-    perror("send");
-    }
-
+  else if (numbytes == 0) {
+        /* socket has been closed */
+    close(sockfd);
+    //printf("closing socket\n");
   }
-
 }
-
-  return NULL;
-}
-
-int get_next_hop(int dest){
-
-  cout<<__func__<<"finding next hop to "<<dest<<"\n";
-  PathInfo p = path_info_list[virtual_id];
-  return p.path[0];
 }
 
 // handle updates to the routing table
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
+
+  for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+
+    if(x[i][virtual_id] != top[i][virtual_id]){
+
+        // we use the value INT_MAX to show links have been broken
+        if(x[i][virtual_id] == 0){
+          cout<<"no longer linked to node "<<i<<"\n";
+        } 
+
+        else {
+          cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
+        }
+      }
+
+    for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+      top[i][j] = x[i][j];
+    }
+  }
+
+  /*
 
   if(timestamp <= time(0)){
 
@@ -642,7 +537,7 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
 
       if(x[virtual_id][i] != top[virtual_id][i] && x[virtual_id][i] != 0){
 
-      // we use the value INT_MAX to show links have been broken
+        // we use the value INT_MAX to show links have been broken
         if(x[virtual_id][i] == INT_MAX){
           cout<<"no longer linked to node "<<i<<"\n";
         } 
@@ -658,11 +553,9 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
         if(x[i][j] > 0){
           top[i][j] = x[i][j];
         }
-        //cout<<top[i][j];
       }
-      //cout<<"\n";
     }
 
     update_timestamp();
-  }
+  }*/
 }
