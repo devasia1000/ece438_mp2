@@ -32,6 +32,7 @@ struct data{ // used to send neighbour data
   int sender_id;
   int ttl;
   int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+
 };
 
 struct update{
@@ -241,10 +242,11 @@ void *contactManager(void *ptr) {
     memcpy(&info, buf, sizeof(update));
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-      if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id){
+      if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id && top[virtual_id][i] > 0){
         //cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
         ip_addresses[i] = new char[20];
         strcpy(ip_addresses[i], info.neighbours[i]);
+        cout<<"connected to "<<i<<"\n";
         add_sockfd(i);
       }
     }
@@ -341,7 +343,7 @@ freeaddrinfo(servinfo); // all done with this structure
 
 sock_fd[v_id] = sockfd;
 
-//cout<<"stored socket fd for "<<v_id<<"\n";
+cout<<"stored socket fd for "<<v_id<<"\n";
 
 }
 
@@ -466,8 +468,6 @@ void *handle_client(void *ptr){
       // decode information from char array into struct
       data info;
       memcpy(&info, buf, sizeof(data));
-
-      handle_routing_table_update(info.top);
 
       //unsigned int prev_virtual_id = info.sender_id;
       info.sender_id = virtual_id;

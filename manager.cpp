@@ -59,6 +59,7 @@ vector<char*> ip_address_array; // holds ip addresses of nodes
 set<int> nodes; // used to store and assign virtual id's to nodes
 int top[MAX_NODE_COUNT][MAX_NODE_COUNT]; // used to hold topology information
 vector<char*> message; // used to hold messages to be sent between nodes
+vector<bool> connected_nodes; // keep track of nodes that are already connected
 // END OF GLOBAL VARIABLES
 
 // START FUNCTION DECLARATIONS
@@ -76,12 +77,14 @@ int main(int argc, char **argv){
     sockfd_array.resize(MAX_NODE_COUNT);
     ip_address_array.resize(MAX_NODE_COUNT);
     message.resize(MAX_NODE_COUNT);
+    connected_nodes.resize(MAX_NODE_COUNT);
 
     // clear all data
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
 
         ip_address_array[i] = NULL;
         sockfd_array[i] = 0;
+        connected_nodes[i] = 0;
 
         for(int j=0 ; j<MAX_NODE_COUNT ; j++){
             top[i][j] = 0;
@@ -199,6 +202,7 @@ if (p == NULL)  {
         set<int>::iterator it = nodes.begin();
         int virtual_id = *it;
         nodes.erase(virtual_id);
+        connected_nodes[virtual_id] = 1;
 
         char *c = new char[50];
         strcpy(c, s);
@@ -261,8 +265,13 @@ void *update_client(void *ptr){
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
 
-        info.top[virtual_id][i] = top[virtual_id][i];
-        info.top[i][virtual_id] = top[i][virtual_id];
+        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+
+            if(connected_nodes[i] > 0 && connected_nodes[j] > 0){
+                info.top[i][j] = top[i][j];
+                info.top[j][i] = top[j][i];
+            }
+        }
 
         if(ip_address_array[i] != NULL){
             strcpy(info.neighbours[i], ip_address_array[i]);
@@ -271,14 +280,7 @@ void *update_client(void *ptr){
     }
 
     char buf[MAXDATASIZE];
-    memcpy(info.top, top, sizeof (int) * MAX_NODE_COUNT * MAX_NODE_COUNT);
-
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-            cout<<info.top[i][j];
-        }
-        cout<<"\n";
-    }
+    //memcpy(info.top, top, sizeof (int) * MAX_NODE_COUNT * MAX_NODE_COUNT);
 
     memcpy(buf, &info, sizeof(update));
 
