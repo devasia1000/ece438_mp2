@@ -120,13 +120,16 @@ int graph::djikstra_helper(){
             path.cost = pathcost[i];
             path.source = source;
 
-            stack<int> temp;
-
             int j = i;
+
+            stack<int> temp;
+            temp.push(j);
+
             while(parent[j] != source){
                 temp.push(parent[j]);
                 j = parent[j];
             }
+            temp.push(source);
 
             while(!temp.empty()){
                 int x = temp.top();
@@ -135,6 +138,19 @@ int graph::djikstra_helper(){
             }
 
             path_info.push_back(path);
+        }
+
+        else if(i == source){
+            PathInfo p;
+            p.path.clear();
+
+            p.destination = source;
+            p.cost = 0;
+            p.source = source;
+
+            p.path.push_back(source);
+
+            path_info.push_back(p);
         }
     }
 

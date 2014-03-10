@@ -36,8 +36,8 @@ struct data{ // used to send neighbour data
 };
 
 struct update{
-    char neighbours[MAX_NODE_COUNT][20];
-    int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
+  char neighbours[MAX_NODE_COUNT][20];
+  int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
 };
 // END OF GLOBAL VARIABLES
 
@@ -122,6 +122,7 @@ void *convergence_checker(void *ptr){
 
     long cur_time = time(0);
     if(cur_time - timestamp > 5 && timestamp != 0){
+      cout<<"\n";
       //cout<<__func__<<" : Convergence Detected! Printing out routing table...\n";
 
       graph g(virtual_id);
@@ -136,17 +137,19 @@ void *convergence_checker(void *ptr){
       vector<PathInfo> info_list = g.getPathInformation();
 
       for(unsigned int i=0 ; i<info_list.size() ; i++){
+
         PathInfo path = info_list[i];
-        cout<<path.destination<<" "<<path.cost<<": "<<path.source<<" ";
+        cout<<path.destination<<" "<<path.cost<<": ";
 
         for(unsigned int j=0 ; j<path.path.size() ; j++){
           cout<<path.path[j]<<" ";
         }
-        cout<<path.destination<<"\n";
+        cout<<"\n";
       }
 
       timestamp = 0;
 
+      cout<<"\n";
     }
   }
 
@@ -230,7 +233,6 @@ void *contactManager(void *ptr) {
     virtual_id = virtual_id - 48; // account for conversion from ASCII to int
     //cout<<__func__<<" assigned virtual id "<<virtual_id<<"\n";
 
-
     pthread_t link_state_listener;
     pthread_create(&link_state_listener, NULL, startServer, NULL);
     //cout<<__func__<<" : started link state listener thread\n";
@@ -241,17 +243,17 @@ void *contactManager(void *ptr) {
     update info;
     memcpy(&info, buf, sizeof(update));
 
+    handle_routing_table_update(info.top);
+
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
       if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id && top[virtual_id][i] > 0){
         //cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
         ip_addresses[i] = new char[20];
         strcpy(ip_addresses[i], info.neighbours[i]);
-        cout<<"connected to "<<i<<"\n";
+        //cout<<"connected to "<<i<<"\n";
         add_sockfd(i);
       }
     }
-
-    handle_routing_table_update(info.top);
 
     //cout<<__func__<<" : recieved neighbour information from manager:\n";
 
@@ -343,7 +345,7 @@ freeaddrinfo(servinfo); // all done with this structure
 
 sock_fd[v_id] = sockfd;
 
-cout<<"stored socket fd for "<<v_id<<"\n";
+//cout<<"stored socket fd for "<<v_id<<"\n";
 
 }
 
@@ -515,14 +517,15 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
     if(x[i][virtual_id] != top[i][virtual_id]){
 
         // we use the value INT_MAX to show links have been broken
-        if(x[i][virtual_id] == 0){
-          cout<<"no longer linked to node "<<i<<"\n";
-        } 
+      if(x[i][virtual_id] == -1){
+        cout<<"no longer linked to node "<<i<<"\n";
+        x[i][virtual_id] = 0;
+      } 
 
-        else {
-          cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
-        }
+      else {
+        cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
       }
+    }
 
     for(int j=0 ; j<MAX_NODE_COUNT ; j++){
       top[i][j] = x[i][j];
@@ -558,4 +561,4 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
 
     update_timestamp();
   }*/
-}
+  }
