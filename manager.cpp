@@ -310,6 +310,7 @@ void *update_client(void *ptr){
     }
 
     char buf[MAXDATASIZE];
+    info.top = top;
     memcpy(buf, &info, sizeof(update));
 
     if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
