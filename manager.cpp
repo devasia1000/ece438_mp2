@@ -53,6 +53,8 @@ char* convertToString(int number){
     // GLOBAL VARIBALES 
 struct update{
     bool neighbour_update; // set this to true if this is a neighbour update
+    int sender_id;
+    int ttl;
     char neighbours[MAX_NODE_COUNT][20];
     int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
 
@@ -62,7 +64,7 @@ struct update{
     char mess[200];
     int hops[MAX_NODE_COUNT];
     int hops_pos;
-};
+  };
 
     vector<int> sockfd_array; // holds socket file descriptors to each node
     vector<char*> ip_address_array; // holds ip addresses of nodes
