@@ -50,12 +50,16 @@ struct update{
     int source;
     int dest;
     char mess[200];
-  };;
+    int hops[MAX_NODE_COUNT];
+    int hops_pos;
+};
+
+vector<update> message_list;
 // END OF GLOBAL VARIABLES
 
 
 // START OF FUNCTION DEFINITIONS
-  void *contactManager(void *ptr);
+void *contactManager(void *ptr);
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]); // handles all updates to routing tables
 void update_timestamp(); // update the convergence timestamp
 void *startServer(void *ptr); // listens to incoming connections from neighbours
@@ -255,51 +259,61 @@ void *contactManager(void *ptr) {
     update info;
     memcpy(&info, buf, sizeof(update));
 
-      // TODO: modify client to handle message information
+    if(info.neighbour_update == true){
 
-    handle_routing_table_update(info.top);
+      //cout<<"recived neighbour update from manager\n";
 
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-      if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id && top[virtual_id][i] > 0){
+      handle_routing_table_update(info.top);
+
+      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        if(ip_addresses[i][0] == '\0' && info.neighbours[i][0] != '\0' && i != virtual_id && top[virtual_id][i] > 0){
         //cout<<"updated ip address for "<<i<<" : "<<ip_addresses[i]<<"\n";
-        ip_addresses[i] = new char[20];
-        strcpy(ip_addresses[i], info.neighbours[i]);
+          ip_addresses[i] = new char[20];
+          strcpy(ip_addresses[i], info.neighbours[i]);
         //cout<<"connected to "<<i<<"\n";
-        add_sockfd(i);
+          add_sockfd(i);
+        }
       }
-    }
 
     //cout<<__func__<<" : recieved neighbour information from manager:\n";
 
     // ENCODE INFORMATION INTO STRUCT
-    char mess[MAXDATASIZE];
-    data message;
+      char mess[MAXDATASIZE];
+      data message;
 
-    message.neighbour_update = true;
-    message.message_update = false;
+      message.neighbour_update = true;
+      message.message_update = false;
 
-    message.sender_id = virtual_id;
-    message.ttl = 20;
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-      for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-        message.top[i][j] = top[i][j];
-      }
-    }
-
-    sleep(2);
-
-    memcpy(mess, &message, sizeof(data));
-    for(int i=0 ; i<MAX_NODE_COUNT ; i++){
-      if(top[virtual_id][i] > 0){
-        if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-          //perror("send");
+      message.sender_id = virtual_id;
+      message.ttl = 20;
+      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+          message.top[i][j] = top[i][j];
         }
       }
-    }
+
+      sleep(2);
+
+      memcpy(mess, &message, sizeof(data));
+      for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+        if(top[virtual_id][i] > 0){
+          if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
+          //perror("send");
+          }
+        }
+      }
 
     //cout<<__func__<<" : sent routing information to neighbour\n";
-    update_timestamp();
+      update_timestamp();
+    }
+
+    else if (info.message_update == true){
+      
+      cout<<"recived message update from manager\n";
+      message_list.push_back(info); // store message to be sent after convergence
+    }
   }
+
 }
 
 else if (numbytes == 0) {
@@ -524,7 +538,7 @@ void *handle_client(void *ptr){
     }
 
     else if (info.message_update == true){
-      // handle message update
+      // TODO: handle message update
 
       info.message_update = true;
       info.neighbour_update = true;

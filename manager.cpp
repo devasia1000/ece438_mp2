@@ -60,6 +60,8 @@ struct update{
     int source;
     int dest;
     char mess[200];
+    int hops[MAX_NODE_COUNT];
+    int hops_pos;
 };
 
     vector<int> sockfd_array; // holds socket file descriptors to each node
@@ -250,6 +252,7 @@ if (p == NULL)  {
                 update info;
                 info.neighbour_update = false;
                 info.message_update = true;
+                info.hops_pos = 0;
 
                 info.source = mess.get_from_node();
                 info.dest = mess.get_to_node();
@@ -264,9 +267,9 @@ if (p == NULL)  {
                 cout<<"\tdest: "<<info.dest<<"\n";
                 cout<<"\tmessage: "<<info.mess<<"\n";
 
-                /*if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
+                if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
                     perror("send");
-                }*/
+                }
             }
         }
 
