@@ -176,16 +176,20 @@ void *convergence_checker(void *ptr){
         if(next_hop > 0){ // NOTE: next_hop will be -1 if node hasn't connected yet
 
           cout<<"from "<<up.source<<" to "<<up.dest<<" hops ";
-          for(int i=0 ; i<up.hops_pos ; i++){
-            cout<<up.hops[i]<<" ";
-          }
-          cout<<"message "<<up.mess<<"\n";
+        for(int i=0 ; i<up.hops_pos ; i++){
+          cout<<up.hops[i]<<" ";
+        }
+        cout<<"message "<<up.mess<<"\n";
 
-          char buf[MAXDATASIZE];
-          memcpy(buf, &up, sizeof(update));
+        char buf[MAXDATASIZE];
+        memcpy(buf, &up, sizeof(update));
 
-          if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
-            //perror("send");
+        if(sock_fd[next_hop] == 0){
+          cout<<"invalid sock fd for sending message to "<<next_hop<<"\n";
+        }
+
+        if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
+            perror("send");
         }
       }
     }
@@ -349,7 +353,7 @@ else if (numbytes == 0) {
 
 void add_sockfd(int v_id){
 
-  usleep(500);
+  usleep(100);
 
   int port = atoi(PORT) + v_id;
   ostringstream oss;
@@ -513,6 +517,8 @@ void *handle_client(void *ptr){
 
     // read data from connected client 
     int numbytes = recv(sockfd, buf, MAXDATASIZE, MSG_WAITALL);
+    cout<<"recvieved "<<numbytes<<" bytes from client\n";
+
     if (numbytes == -1) {
       perror("recv");
       exit(0);
@@ -532,6 +538,7 @@ void *handle_client(void *ptr){
         info.neighbour_update = true;
         info.message_update = false;
 
+        unsigned int prev_virtual_id = info.sender_id;
         info.sender_id = virtual_id;
         info.ttl--;
 
@@ -546,7 +553,7 @@ void *handle_client(void *ptr){
 
           // send to all neighbours
           for(unsigned int i=0 ; i<sock_fd.size() ; i++){
-          if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
+          if(sock_fd[i] != 0  && i != prev_virtual_id){
 
           //cout<<"\tresending to "<<i<<"\n";
             if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
@@ -562,6 +569,7 @@ void *handle_client(void *ptr){
 
     else if (info.message_update == true){
       // TODO: handle message update
+      cout<<"recieved message update from client\n";
 
       info.message_update = true;
       info.neighbour_update = false;
@@ -580,24 +588,29 @@ void *handle_client(void *ptr){
         continue;
       }
 
-      int next_hop = get_next_hop(info);
+      else{
 
-      if(next_hop > 0){ // NOTE: next_hop will be -1 if node hasn't connected yet
+        int next_hop = get_next_hop(info);
 
-        cout<<"from "<<info.source<<" to "<<info.dest<<" hops ";
-      for(int i=0 ; i<info.hops_pos ; i++){
-        cout<<info.hops[i]<<" ";
-      }
-      cout<<"message "<<info.mess<<"\n";
+        cout<<" next hop is "<<next_hop<<"\n";
 
-      char buf3[MAXDATASIZE];
-      memcpy(buf3, &info, sizeof(update));
+        if(next_hop > 0){ // NOTE: next_hop will be -1 if node hasn't connected yet
 
-      if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
-          //perror("send");
-      }
+          cout<<"from "<<info.source<<" to "<<info.dest<<" hops ";
+          for(int i=0 ; i<info.hops_pos ; i++){
+            cout<<info.hops[i]<<" ";
+          }
+          cout<<"message "<<info.mess<<"\n";
+
+          char buf3[MAXDATASIZE];
+          memcpy(buf3, &info, sizeof(update));
+
+          if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
+            //perror("send");
+          }
     }
   }
+}
 }
 
 else if (numbytes == 0) {
