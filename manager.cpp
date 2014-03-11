@@ -264,9 +264,9 @@ if (p == NULL)  {
                 cout<<"\tdest: "<<info.dest<<"\n";
                 cout<<"\tmessage: "<<info.mess<<"\n";
 
-                //if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
-                //    perror("send");
-                //}
+                /*if (send(sockfd_array[virtual_id], buf, sizeof(buf), 0) == -1){
+                    perror("send");
+                }*/
             }
         }
 
@@ -285,7 +285,7 @@ if (p == NULL)  {
     return 0;
 }
 
-    // read from stdin and update appropiate client
+// read from stdin and update appropiate client
 void *stdin_reader(void *ptr){
     sleep(2);
 

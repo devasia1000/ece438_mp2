@@ -47,13 +47,15 @@ struct update{
     int top[MAX_NODE_COUNT][MAX_NODE_COUNT];
 
     bool message_update; // set this to true if this is a message update
-    vector<char[200]> message_list;
-};
+    int source;
+    int dest;
+    char mess[200];
+  };;
 // END OF GLOBAL VARIABLES
 
 
 // START OF FUNCTION DEFINITIONS
-void *contactManager(void *ptr);
+  void *contactManager(void *ptr);
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]); // handles all updates to routing tables
 void update_timestamp(); // update the convergence timestamp
 void *startServer(void *ptr); // listens to incoming connections from neighbours
@@ -253,6 +255,8 @@ void *contactManager(void *ptr) {
     update info;
     memcpy(&info, buf, sizeof(update));
 
+      // TODO: modify client to handle message information
+
     handle_routing_table_update(info.top);
 
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
@@ -270,6 +274,10 @@ void *contactManager(void *ptr) {
     // ENCODE INFORMATION INTO STRUCT
     char mess[MAXDATASIZE];
     data message;
+
+    message.neighbour_update = true;
+    message.message_update = false;
+
     message.sender_id = virtual_id;
     message.ttl = 20;
     for(int i=0 ; i<MAX_NODE_COUNT ; i++){
@@ -466,7 +474,7 @@ void *handle_client(void *ptr){
 
     usleep(50);
 
-// read data from connected client 
+    // read data from connected client 
     int numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
     if (numbytes == -1) {
       perror("recv");
@@ -481,32 +489,45 @@ void *handle_client(void *ptr){
       data info;
       memcpy(&info, buf, sizeof(data));
 
-      //unsigned int prev_virtual_id = info.sender_id;
-      info.sender_id = virtual_id;
-      info.ttl--;
+      if(info.neighbour_update == true){
 
+        //unsigned int prev_virtual_id = info.sender_id;
+        info.neighbour_update = true;
+        info.message_update = false;
+
+        info.sender_id = virtual_id;
+        info.ttl--;
 
       //cout<<"recieved info from "<<prev_virtual_id<<" with ttl "<<info.ttl<<"\n";
 
         // ENCODE STRUCT INTO CHAR ARRAY AND SENd
-      char buf2[MAXDATASIZE];
+        char buf2[MAXDATASIZE];
       //cout<<"bytes read"<<numbytes<<"\n";
-      memcpy(buf2, &info, sizeof(data));
+        memcpy(buf2, &info, sizeof(data));
 
-      if(info.ttl > 0){
+        if(info.ttl > 0){
 
           // send to all neighbours
-        for(unsigned int i=0 ; i<sock_fd.size() ; i++){
+          for(unsigned int i=0 ; i<sock_fd.size() ; i++){
           if(sock_fd[i] != 0/*  && i != prev_virtual_id*/){
 
           //cout<<"\tresending to "<<i<<"\n";
-          if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
+            if (send(sock_fd[i], buf2, MAXDATASIZE, 0) == -1){
             //perror("send");
-          }
+            }
 
-          update_timestamp();
+            update_timestamp();
+          }
         }
+
       }
+    }
+
+    else if (info.message_update == true){
+      // handle message update
+
+      info.message_update = true;
+      info.neighbour_update = true;
 
     }
   }
