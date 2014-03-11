@@ -18,6 +18,7 @@
 
 #define BACKLOG 20   // how many pending connections queue will hold
 #define MAXDATASIZE 3000
+#define VIRTUAL_MAXDATASIZE 10
 #define PORT "6000"
 
 // START OF GLOBAL VARIABLES
@@ -185,7 +186,7 @@ void *convergence_checker(void *ptr){
 
           if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
             //perror("send");
-          }
+        }
       }
     }
   }
@@ -246,7 +247,7 @@ void *contactManager(void *ptr) {
   while(1) {
 
 /* read data from server */
-    numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
+    numbytes = recv(sockfd, buf, MAXDATASIZE, MSG_WAITALL);
     if (numbytes == -1) {
   /* error has occured with read */
       perror("recv");
@@ -511,7 +512,7 @@ void *handle_client(void *ptr){
     usleep(50);
 
     // read data from connected client 
-    int numbytes = recv(sockfd, buf, MAXDATASIZE, 0);
+    int numbytes = recv(sockfd, buf, MAXDATASIZE, MSG_WAITALL);
     if (numbytes == -1) {
       perror("recv");
       exit(0);

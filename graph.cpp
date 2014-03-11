@@ -51,37 +51,25 @@ int graph::minDistance(int dist[], bool sptSet[]){
 // I WILL IMPLEMENT DJIKSTRAS BY MYSELF AFTER I COMFIRM LINK STATE IS WORKING
 int graph::djikstra(){
 
-    int dist[MAX_NODE_COUNT];     // The output array.  dist[i] will hold the shortest
-    // distance from src to i
+    int dist[MAX_NODE_COUNT];
 
-    bool sptSet[MAX_NODE_COUNT]; // sptSet[i] will true if vertex i is included in shortest
-    // path tree or shortest distance from src to i is finalized
+    bool sptSet[MAX_NODE_COUNT];
 
-    // Initialize all distances as INFINITE and stpSet[] as false
     for (int i = 0; i < MAX_NODE_COUNT; i++){
         dist[i] = INT_MAX;
-        sptSet[i] = false;
         parent[i] = -1;
+        sptSet[i] = false;
     }
 
-    // Distance of source vertex from itself is always 0
     dist[source] = 0;
 
-    // Find shortest path for all vertices
     for (int count = 0; count < MAX_NODE_COUNT-1; count++){
 
-        // Pick the minimum distance vertex from the set of vertices not
-        // yet processed. u is always equal to src in first iteration.
         int u = minDistance(dist, sptSet);
-        // Mark the picked vertex as processed
         sptSet[u] = true;
 
-        // Update dist value of the adjacent vertices of the picked vertex.
         for (int v = 0; v < MAX_NODE_COUNT; v++){
 
-            // Update dist[v] only if is not in sptSet, there is an edge from 
-            // u to v, and total weight of path from src to  v through u is 
-            // smaller than current value of dist[v]
             if (!sptSet[v] && top[u][v] && dist[u] != INT_MAX && dist[u]+top[u][v] < dist[v]){
                 dist[v] = dist[u] + top[u][v];
                 pathcost[v] = dist[v];
