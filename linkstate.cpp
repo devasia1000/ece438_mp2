@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
 
 void *convergence_checker(void *ptr){
   while(1){
+    
     sleep(5);
 
     long cur_time = time(0);

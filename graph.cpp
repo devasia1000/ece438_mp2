@@ -1,9 +1,5 @@
-// IMPORTANT REFERENCES: http://www.geeksforgeeks.org/greedy-algorithms-set-6-dijkstras-shortest-path-algorithm/
-//                       http://www.geeksforgeeks.org/greedy-algorithms-set-5-prims-minimum-spanning-tree-mst-2/
-
 #include "graph.h"
 
-// constructor sets adjagency matrix to 0
 graph::graph(int src){
 
     source = src;
@@ -31,66 +27,50 @@ void graph::addLink(int node1, int node2, int cost){
     }
 }
 
-int graph::minDistance(int dist[], bool sptSet[]){
-
-    // Initialize min value
-    int min = INT_MAX;
-    int min_index;
-
-    for (int v = 0; v < MAX_NODE_COUNT; v++){
-        if (sptSet[v] == false && dist[v] <= min){
-            min = dist[v];
-            min_index = v;
-        }
-    }
-
-    return min_index;
-}
-
-// THIS FUNCTION IS FOR TESTING PURPOSES ONLY...
-// I WILL IMPLEMENT DJIKSTRAS BY MYSELF AFTER I COMFIRM LINK STATE IS WORKING
 int graph::djikstra(){
 
     int dist[MAX_NODE_COUNT];
-
     bool sptSet[MAX_NODE_COUNT];
 
-    for (int i = 0; i < MAX_NODE_COUNT; i++){
-        dist[i] = INT_MAX;
+    for (int i = 0; i < MAX_NODE_COUNT; i++){ // clear all arrays
+
+        if(i == source){
+            dist[i] = 0;
+        } else{
+            dist[i] = INT_MAX;
+        }
+
         parent[i] = -1;
         sptSet[i] = false;
     }
 
-    dist[source] = 0;
+    for (int i = 0; i < MAX_NODE_COUNT-1; i++){
 
-    for (int count = 0; count < MAX_NODE_COUNT-1; count++){
+        int min = INT_MAX;
+        int min_index;
 
-        int u = minDistance(dist, sptSet);
-        sptSet[u] = true;
+        for (int i = 0; i < MAX_NODE_COUNT; i++){
+            if (sptSet[i] == false && dist[i] <= min){
+                min_index = i;
+                min = dist[i];
+            }
+        }
 
-        for (int v = 0; v < MAX_NODE_COUNT; v++){
+        sptSet[min_index] = true;
 
-            if (!sptSet[v] && top[u][v] && dist[u] != INT_MAX && dist[u]+top[u][v] < dist[v]){
-                dist[v] = dist[u] + top[u][v];
-                pathcost[v] = dist[v];
-                parent[v] = u;
+        for (int j = 0; j < MAX_NODE_COUNT; j++){
+
+            if (!sptSet[j] && top[min_index][j] && dist[min_index] != INT_MAX && dist[min_index]+top[min_index][j] < dist[j]){
+                dist[j] = dist[min_index] + top[min_index][j];
+                parent[j] = min_index;
+                pathcost[j] = dist[j];
             }
         }
     }
 
-    // print the constructed distance array
     djikstra_helper();
 
     return 1;
-}
-
-int graph::printSolution(int dist[]){
-
-   printf("Vertex   Distance from Source\n");
-   for (int i = 0; i < MAX_NODE_COUNT; i++)
-      printf("%d \t\t %d\n", i, dist[i]);
-
-  return 0;
 }
 
 int graph::djikstra_helper(){

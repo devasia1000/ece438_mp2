@@ -28,12 +28,8 @@ class graph{
         int pathcost[MAX_NODE_COUNT];
         int source;
 
-
-        int minDistance(int dist[], bool sptSet[]);
         int djikstra();
         int djikstra_helper();
-
-        int printSolution(int dist[]);
 
     public:
         
