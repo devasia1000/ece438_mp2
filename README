@@ -18,7 +18,7 @@ Team Contributions:
 
     Devasia Manuel was responsbile for implementing most aspects of the manager as well the link state protocol
 
-    Spencer Carlson was responsible for implementing the messaging structure of the manager as well as the distance vector
+    Spencer Carlson was responsible for reading and parsing messages from the message file as well as the distance vector
     protocol
 
 

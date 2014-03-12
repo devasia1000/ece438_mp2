@@ -43,8 +43,6 @@ struct update{
     char mess[200];
     int hops[MAX_NODE_COUNT];
     int hops_pos;
-
-    bool convergence_update;
   };
 
   vector<update> message_list;
@@ -164,6 +162,8 @@ void *convergence_checker(void *ptr){
       table_changed = false;
       // TODO: send messages to neighbours
 
+      sleep(5);
+
       // traverse message list backwards to get earliest message
       for(int i=message_list.size()-1 ; i>=0 ; i--){
 
@@ -175,6 +175,7 @@ void *convergence_checker(void *ptr){
         up.hops_pos++;
 
         int next_hop = get_next_hop(up);
+        //cout<<"got next hop as "<<next_hop<<" for message to "<<up.dest<<"\n";
 
         if(next_hop > 0){ // NOTE: next_hop will be -1 if node hasn't connected yet
 
@@ -188,7 +189,7 @@ void *convergence_checker(void *ptr){
         memcpy(buf, &up, sizeof(update));
 
         if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
-          perror("send");
+          //perror("send");
         }
       }
     }
@@ -337,7 +338,7 @@ void *contactManager(void *ptr) {
 
     else if (info.message_update == true){
 
-      cout<<"recived message update from manager\n";
+      //cout<<"recived message update from manager\n";
       message_list.push_back(info); // store message to be sent after convergence
     }
   }
@@ -570,7 +571,7 @@ void *handle_client(void *ptr){
 
       else if (info.message_update == true){
       // TODO: HANDLE BUG WHERE MESSAGES GET SENT TO WRONG CLIENTS
-      //cout<<"recieved message update from client\n";
+        //cout<<"recieved message update from "<<info.source<<" to "<<info.dest<<"\n";
 
         info.message_update = true;
         info.neighbour_update = false;
@@ -593,22 +594,22 @@ void *handle_client(void *ptr){
 
           int next_hop = get_next_hop(info);
 
-        //cout<<" next hop is "<<next_hop<<"\n";
+          //cout<<" next hop is "<<next_hop<<"\n";
 
         if(next_hop > 0){ // NOTE: next_hop will be -1 if node hasn't connected yet
 
           cout<<"from "<<info.source<<" to "<<info.dest<<" hops ";
-        for(int i=0 ; i<info.hops_pos ; i++){
-          cout<<info.hops[i]<<" ";
-        }
-        cout<<"message "<<info.mess<<"\n";
+          for(int i=0 ; i<info.hops_pos ; i++){
+            cout<<info.hops[i]<<" ";
+          }
+          cout<<"message "<<info.mess<<"\n";
 
-        char buf3[MAXDATASIZE];
-        memcpy(buf3, &info, sizeof(update));
+          char buf3[MAXDATASIZE];
+          memcpy(buf3, &info, sizeof(update));
 
-        if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
-            //perror("send");
-        }
+          if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
+            perror("send");
+          }
 
           //cout<<"sent message to "<<next_hop<<"\n";
       }
@@ -648,17 +649,16 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
       if(x[i][virtual_id] == -1){
         cout<<"no longer linked to node "<<i<<"\n";
         x[i][virtual_id] = 0;
+        table_changed = true;
       } 
 
       else {
         cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
+        table_changed = true;
       }
     }
 
     for(int j=0 ; j<MAX_NODE_COUNT ; j++){
-      if(top[i][j] != x[i][j] && (i == virtual_id || j == virtual_id)){
-        table_changed = true;
-      }
       top[i][j] = x[i][j];
     }
   }
