@@ -51,7 +51,7 @@ struct update{
 
 
 // START OF FUNCTION DEFINITIONS
-void *contactManager(void *ptr);
+  void *contactManager(void *ptr);
 void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]); // handles all updates to routing tables
 void update_timestamp(); // update the convergence timestamp
 void *startServer(void *ptr); // listens to incoming connections from neighbours
@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
 
 void *convergence_checker(void *ptr){
   while(1){
-    
+
     sleep(5);
 
     long cur_time = time(0);
@@ -161,9 +161,8 @@ void *convergence_checker(void *ptr){
       }
 
       table_changed = false;
-      // TODO: send messages to neighbours
 
-      sleep(5);
+      sleep(10);
 
       // traverse message list backwards to get earliest message
       for(int i=message_list.size()-1 ; i>=0 ; i--){
@@ -571,14 +570,14 @@ void *handle_client(void *ptr){
       }
 
       else if (info.message_update == true){
-      // TODO: HANDLE BUG WHERE MESSAGES GET SENT TO WRONG CLIENTS
+      // TODO: HANDLE BUG WHERE MESSAGE LIST SKIPS A 3
         //cout<<"recieved message update from "<<info.source<<" to "<<info.dest<<"\n";
 
         info.message_update = true;
         info.neighbour_update = false;
 
         info.hops[info.hops_pos] = virtual_id;
-        info.hops_pos++;
+        info.hops_pos = info.hops_pos + 1;
 
         if(info.dest == virtual_id){
 
@@ -588,31 +587,26 @@ void *handle_client(void *ptr){
           }
           cout<<"message "<<info.mess<<"\n";
 
-          continue;
         }
 
         else{
 
           int next_hop = get_next_hop(info);
 
-          //cout<<" next hop is "<<next_hop<<"\n";
-
         if(next_hop > 0){ // NOTE: next_hop will be -1 if node hasn't connected yet
 
           cout<<"from "<<info.source<<" to "<<info.dest<<" hops ";
-          for(int i=0 ; i<info.hops_pos ; i++){
-            cout<<info.hops[i]<<" ";
-          }
-          cout<<"message "<<info.mess<<"\n";
+        for(int i=0 ; i<info.hops_pos ; i++){
+          cout<<info.hops[i]<<" ";
+        }
+        cout<<"message "<<info.mess<<"\n";
 
-          char buf3[MAXDATASIZE];
-          memcpy(buf3, &info, sizeof(update));
+        char buf3[MAXDATASIZE];
+        memcpy(buf3, &info, sizeof(update));
 
-          if (send(sock_fd[next_hop], buf, MAXDATASIZE, 0) == -1){
-            perror("send");
-          }
-
-          //cout<<"sent message to "<<next_hop<<"\n";
+        if (send(sock_fd[next_hop], buf3, MAXDATASIZE, 0) == -1){
+          perror("send");
+        }
       }
     }
   }
