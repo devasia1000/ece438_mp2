@@ -272,7 +272,7 @@ void *startServer(void *ptr) {
 
     close(sockfd);
 
-
+    return NULL;
 
 	// char server_port[80];
 	// string po = PORT;
