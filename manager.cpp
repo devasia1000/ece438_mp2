@@ -64,6 +64,8 @@ struct update{
     char mess[200];
     int hops[MAX_NODE_COUNT];
     int hops_pos;
+
+    bool convergence_update;
   };
 
     vector<int> sockfd_array; // holds socket file descriptors to each node
