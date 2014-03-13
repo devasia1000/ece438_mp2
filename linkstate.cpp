@@ -314,7 +314,7 @@ void *contactManager(void *ptr) {
       message.message_update = false;
 
       message.sender_id = virtual_id;
-      message.ttl = 20;
+      message.ttl = 5;
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         for(int j=0 ; j<MAX_NODE_COUNT ; j++){
           message.top[i][j] = top[i][j];
@@ -327,7 +327,7 @@ void *contactManager(void *ptr) {
       for(int i=0 ; i<MAX_NODE_COUNT ; i++){
         if(top[virtual_id][i] > 0){
           if (send(sock_fd[i], mess, MAXDATASIZE, 0) == -1){
-          //perror("send");
+            perror("send");
           }
         }
       }
@@ -644,17 +644,66 @@ void handle_routing_table_update(int x[MAX_NODE_COUNT][MAX_NODE_COUNT]){
       if(x[i][virtual_id] == -1){
         cout<<"no longer linked to node "<<i<<"\n";
         x[i][virtual_id] = 0;
-        table_changed = true;
       } 
 
       else {
         cout<<"now linked to node "<<i<<" with cost "<<x[virtual_id][i]<<"\n";
-        table_changed = true;
       }
     }
 
     for(int j=0 ; j<MAX_NODE_COUNT ; j++){
       top[i][j] = x[i][j];
     }
+  }
+
+  graph g(virtual_id);
+  for(int i=0 ; i<MAX_NODE_COUNT ; i++){
+    for(int j=0 ; j<MAX_NODE_COUNT ; j++){
+      if(top[i][j] > 0 && top[i][j] != INT_MAX && top[i][j] != 6000){
+        g.addLink(i, j, top[i][j]);
+      }
+    }
+  }
+
+  vector<PathInfo> temp = g.getPathInformation();
+
+  if(info_list.size() != temp.size()){
+    table_changed = true;
+    return;
+  }
+
+  for(unsigned int i=0 ; i<info_list.size() ; i++){
+
+    PathInfo path1 = info_list[i];
+    PathInfo path2 = temp[i];
+
+    if(path1.source != path2.source){
+      table_changed = true;
+      return;
+    }
+
+    if(path1.destination != path2.destination){
+      table_changed = true;
+      return;
+    }
+
+    if(path1.cost != path2.cost){
+      table_changed = true;
+      return;
+    }
+
+    if(path1.path.size() != path2.path.size()){
+      table_changed = true;
+      return;
+    }
+
+    for(unsigned int i=0 ; i<path1.path.size() ; i++){
+      if(path1.path[i] != path2.path[i]){
+        table_changed = true;
+        return;
+      }
+    }
+
+    //cout<<"set table_changed to "<<table_changed<<"\n";
   }
 }
