@@ -146,7 +146,6 @@ void *convergence_checker(void *ptr){
 
       info_list = g.getPathInformation();
 
-      cout<<"\n";
       for(unsigned int i=0 ; i<info_list.size() ; i++){
 
         if(table_changed == true){
@@ -160,7 +159,6 @@ void *convergence_checker(void *ptr){
           cout<<"\n";
         }
       }
-      cout<<"\n";
 
       table_changed = false;
 
